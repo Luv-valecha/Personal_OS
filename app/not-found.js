@@ -1,0 +1,2 @@
+import Link from "next/link";
+export default function NotFound() { return <main style={{ position: "relative", zIndex: 1, minHeight: "100dvh", display: "grid", placeItems: "center", textAlign: "center", padding: 24 }}><div><h1 style={{ fontSize: 24 }}>Page not found</h1><p className="sub" style={{ margin: "6px 0 16px" }}>That page doesn&apos;t exist.</p><Link className="btn btn-primary" href="/dashboard">Back to dashboard</Link></div></main>; }

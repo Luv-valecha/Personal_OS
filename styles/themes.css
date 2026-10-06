@@ -1,0 +1,59 @@
+/* ============================================================================
+   THEME TOKENS.  A theme is just a block of base tokens (--c-*) plus optional
+   effect tokens. Components only read the semantic tokens (--color-*) defined
+   in globals.css. To add a theme: add a block here + an entry in lib/themes.js.
+   ========================================================================== */
+:root, [data-theme] {
+  --c-red: #ef4444; --c-orange: #f97316; --c-yellow: #eab308; --c-green: #22c55e;
+  --animation-speed: 160ms;
+  --radius: 12px;
+  --shadow-card: 0 1px 2px rgb(0 0 0 / .25), 0 6px 20px rgb(0 0 0 / .12);
+  --card-border-w: 1px;
+  --bg-effect: none; --bg-effect-size: auto; --bg-effect-opacity: 1;
+  --font-heading: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --heading-weight: 650; --heading-tracking: -0.01em;
+  --fx-anim: fx-sweep; --wipe-anim: wipe-fade;
+}
+[data-theme="light"] { --c-bg:#f5f6f8; --c-surface:#ffffff; --c-border:#e3e5ea; --c-text:#14161a; --c-primary:#4f46e5; --c-primary-fg:#fff; --c-secondary:#0ea5e9; --c-accent:#f59e0b; --shadow-card: 0 1px 2px rgb(16 24 40 / .05), 0 4px 14px rgb(16 24 40 / .05); --c-red:#dc2626; --c-orange:#ea580c; --c-yellow:#ca8a04; --c-green:#16a34a; color-scheme: light; }
+[data-theme="dark"] { --c-bg:#0f1115; --c-surface:#171a20; --c-border:#262a33; --c-text:#e8eaee; --c-primary:#7c83ff; --c-primary-fg:#0b0c10; --c-secondary:#38bdf8; --c-accent:#f5b942; color-scheme: dark; }
+[data-theme="amoled"] { --c-bg:#000; --c-surface:#09090b; --c-border:#1b1b1f; --c-text:#ececef; --c-primary:#8b92ff; --c-primary-fg:#000; --c-secondary:#38bdf8; --c-accent:#f5b942; --shadow-card:none; color-scheme: dark; }
+[data-theme="minimal"] { --c-bg:#fafafa; --c-surface:#fff; --c-border:#e6e6e6; --c-text:#111; --c-primary:#111; --c-primary-fg:#fff; --c-secondary:#555; --c-accent:#111; --radius:6px; --shadow-card:none; --c-red:#b91c1c; --c-orange:#c2410c; --c-yellow:#a16207; --c-green:#15803d; color-scheme: light; }
+
+/* ---------- Marvel ---------- */
+[data-theme="marvel"] { --c-bg:#0e0e12; --c-surface:#17171d; --c-border:#2a2a33; --c-text:#f1f1f4; --c-primary:#ec1d24; --c-primary-fg:#fff; --c-secondary:#9b1118; --c-accent:#f1f1f4; --fx-anim: fx-grow; --wipe-anim: wipe-slide-up;
+  --bg-effect: linear-gradient(180deg, color-mix(in srgb, var(--c-primary) 10%, transparent), transparent 220px); color-scheme: dark; }
+[data-theme="ironman"] { --c-bg:#120c0d; --c-surface:#1c1314; --c-border:#3a2a22; --c-text:#f4e9d9; --c-primary:#d4202a; --c-primary-fg:#fff; --c-secondary:#f2b632; --c-accent:#f2b632; --radius:10px; --fx-anim: fx-scan; --wipe-anim: wipe-scan;
+  --shadow-card: inset 0 1px 0 rgb(242 182 50 / .10), 0 8px 24px rgb(0 0 0 / .35);
+  --bg-effect: repeating-linear-gradient(0deg, rgb(242 182 50 / .035) 0 1px, transparent 1px 4px), radial-gradient(70% 40% at 85% -5%, rgb(212 32 42 / .16), transparent); color-scheme: dark; }
+[data-theme="spiderman"] { --c-bg:#0b0d17; --c-surface:#131627; --c-border:#272c4d; --c-text:#eef0fb; --c-primary:#e23636; --c-primary-fg:#fff; --c-secondary:#2b59c3; --c-accent:#6c8cff; --fx-anim: fx-grow; --wipe-anim: wipe-web;
+  --bg-effect: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='520' height='520' viewBox='0 0 520 520' fill='none' stroke='%23ffffff' stroke-opacity='.045'%3E%3Cpath d='M0 0L520 520M0 130L390 520M0 260L260 520M0 390L130 520M130 0L520 390M260 0L520 260M390 0L520 130'/%3E%3Cpath d='M0 60Q60 60 60 0M0 130Q130 130 130 0M0 210Q210 210 210 0M0 300Q300 300 300 0M0 400Q400 400 400 0'/%3E%3C/svg%3E") top left / 520px 520px no-repeat; color-scheme: dark; }
+[data-theme="moonknight"] { --c-bg:#101114; --c-surface:#191b20; --c-border:#2d3038; --c-text:#eceef2; --c-primary:#d8dce3; --c-primary-fg:#101114; --c-secondary:#8e97a6; --c-accent:#f3f5f8; --fx-anim: fx-pulse; --wipe-anim: wipe-moon; --heading-weight: 600; --heading-tracking: .01em;
+  --font-heading: ui-serif, "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  --bg-effect: radial-gradient(260px 260px at 88% 6%, rgb(235 240 250 / .09), transparent 70%), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' fill='none' stroke='%23ffffff' stroke-opacity='.035'%3E%3Cpath d='M32 4L60 32L32 60L4 32Z'/%3E%3Cpath d='M32 18L46 32L32 46L18 32Z'/%3E%3C/svg%3E"); --bg-effect-size: auto, 64px 64px; color-scheme: dark; }
+[data-theme="thor"] { --c-bg:#0a101f; --c-surface:#121b31; --c-border:#243456; --c-text:#e9eefc; --c-primary:#3b8bff; --c-primary-fg:#04101f; --c-secondary:#b9c5da; --c-accent:#7dd3fc; --fx-anim: fx-flicker; --wipe-anim: wipe-flash;
+  --shadow-card: inset 0 1px 0 rgb(185 197 218 / .08), 0 8px 24px rgb(0 0 0 / .35);
+  --bg-effect: radial-gradient(60% 35% at 50% -10%, rgb(59 139 255 / .20), transparent); color-scheme: dark; }
+[data-theme="captain"] { --c-bg:#0a1124; --c-surface:#111b36; --c-border:#243262; --c-text:#f1f4fb; --c-primary:#d0212f; --c-primary-fg:#fff; --c-secondary:#3060d6; --c-accent:#ffffff; --fx-anim: fx-grow; --wipe-anim: wipe-circle;
+  --bg-effect: radial-gradient(circle at 100% 0%, transparent 0 120px, rgb(255 255 255 / .035) 120px 122px, transparent 122px 170px, rgb(208 33 47 / .07) 170px 172px, transparent 172px 230px, rgb(255 255 255 / .03) 230px 232px, transparent 232px); color-scheme: dark; }
+[data-theme="hawkeye"] { --c-bg:#0f0a15; --c-surface:#181021; --c-border:#2f2242; --c-text:#efe8f6; --c-primary:#8b5cf6; --c-primary-fg:#fff; --c-secondary:#5b21b6; --c-accent:#ef4444; --fx-anim: fx-grow; --wipe-anim: wipe-circle;
+  --bg-effect: radial-gradient(circle at 92% 8%, transparent 0 60px, rgb(239 68 68 / .10) 60px 61px, transparent 61px 100px, rgb(139 92 246 / .10) 100px 101px, transparent 101px 140px, rgb(255 255 255 / .04) 140px 141px, transparent 141px), linear-gradient(rgb(255 255 255 / .03), rgb(255 255 255 / .03)) 92% 0 / 1px 300px no-repeat; color-scheme: dark; }
+[data-theme="hulk"] { --c-bg:#0d100e; --c-surface:#151a17; --c-border:#28332c; --c-text:#e9f1eb; --c-primary:#46a158; --c-primary-fg:#05120a; --c-secondary:#6d3fd1; --c-accent:#9a7bf0; --fx-anim: fx-pulse; --wipe-anim: wipe-fade;
+  --bg-effect: radial-gradient(50% 30% at 15% 0%, rgb(109 63 209 / .14), transparent), radial-gradient(40% 30% at 90% 100%, rgb(70 161 88 / .10), transparent); color-scheme: dark; }
+[data-theme="venom"] { --c-bg:#08080a; --c-surface:#111114; --c-border:#242429; --c-text:#f2f2f4; --c-primary:#f2f2f4; --c-primary-fg:#08080a; --c-secondary:#8a8a94; --c-accent:#ffffff; --radius:16px; --fx-anim: fx-pulse; --wipe-anim: wipe-liquid;
+  --bg-effect: radial-gradient(40% 28% at 10% 0%, rgb(255 255 255 / .06), transparent 70%), radial-gradient(30% 24% at 95% 80%, rgb(255 255 255 / .045), transparent 70%), radial-gradient(24% 18% at 55% 105%, rgb(255 255 255 / .05), transparent 70%); color-scheme: dark; }
+
+/* ---------- DC ---------- */
+[data-theme="dc"] { --c-bg:#0a1120; --c-surface:#121b30; --c-border:#233049; --c-text:#ecf1fa; --c-primary:#1d7af3; --c-primary-fg:#fff; --c-secondary:#0b3d91; --c-accent:#5ec2ff; --fx-anim: fx-sweep; --wipe-anim: wipe-slide-up;
+  --bg-effect: linear-gradient(180deg, rgb(29 122 243 / .10), transparent 240px); color-scheme: dark; }
+[data-theme="batman"] { --c-bg:#0b0b0d; --c-surface:#141416; --c-border:#27272c; --c-text:#ececef; --c-primary:#f2c200; --c-primary-fg:#111; --c-secondary:#8b8d94; --c-accent:#f2c200; --radius:10px; --fx-anim: fx-pulse; --wipe-anim: wipe-signal;
+  --bg-effect: radial-gradient(ellipse 300px 150px at 50% -40px, rgb(242 194 0 / .13), transparent 70%), linear-gradient(0deg, rgb(255 255 255 / .03), transparent 160px); color-scheme: dark; }
+[data-theme="superman"] { --c-bg:#0a1226; --c-surface:#111d3b; --c-border:#223768; --c-text:#eef3ff; --c-primary:#2272f0; --c-primary-fg:#fff; --c-secondary:#e11d2a; --c-accent:#f5c518; --fx-anim: fx-sweep; --wipe-anim: wipe-slide-up;
+  --bg-effect: radial-gradient(70% 34% at 50% -8%, rgb(80 150 255 / .22), transparent), radial-gradient(30% 20% at 100% 100%, rgb(225 29 42 / .08), transparent); color-scheme: dark; }
+[data-theme="flash"] { --c-bg:#130a0a; --c-surface:#1e1111; --c-border:#3e2321; --c-text:#f8ede7; --c-primary:#e41e2b; --c-primary-fg:#fff; --c-secondary:#f5b800; --c-accent:#f5b800; --fx-anim: fx-streak; --wipe-anim: wipe-streak; --animation-speed: 110ms;
+  --bg-effect: repeating-linear-gradient(115deg, transparent 0 46px, rgb(245 184 0 / .035) 46px 47px, transparent 47px 120px), radial-gradient(60% 30% at 0% 0%, rgb(228 30 43 / .14), transparent); color-scheme: dark; }
+[data-theme="doom"] { --c-bg:#0b0f0d; --c-surface:#131916; --c-border:#2a362f; --c-text:#e6ece8; --c-primary:#3f9460; --c-primary-fg:#05110a; --c-secondary:#8b959d; --c-accent:#b9c3ca; --radius:6px; --fx-anim: fx-scan; --wipe-anim: wipe-mech;
+  --shadow-card: inset 0 1px 0 rgb(185 195 202 / .07), inset 0 -1px 0 rgb(0 0 0 / .4), 0 6px 18px rgb(0 0 0 / .35);
+  --bg-effect: repeating-linear-gradient(90deg, rgb(185 195 202 / .025) 0 1px, transparent 1px 3px), radial-gradient(50% 30% at 50% 0%, rgb(63 148 96 / .12), transparent); color-scheme: dark; }
+
+/* custom themes set --c-* inline on <html data-theme="custom"> (see lib/themes.js) */
+[data-theme="custom"] { color-scheme: dark; --c-primary-fg: #fff; }
