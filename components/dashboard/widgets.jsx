@@ -9,6 +9,7 @@ import { relDay, urgency, fmtTime, fmtDuration, fmtDate, dateInTz, diffDays } fr
 import { money, activityText, relTime, STATUS_LABEL } from "@/lib/format";
 import { updatePreferences } from "@/actions/settings";
 import { useAction } from "@/components/ui/useAction";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import PriorityCard from "@/components/today/PriorityCard";
 import TodayTimeline from "@/components/today/TodayTimeline";
 import QuickLinksWidget from "@/components/quicklinks/QuickLinksWidget";
@@ -47,8 +48,66 @@ export function OverviewWidget({ data, ctx }) {
 
 export function TasksWidget({ data, ctx }) {
   const t = data.tasks || [];
-  return (<><Title href="/tasks" link="All tasks">Today&apos;s tasks</Title>
-    {t.length === 0 ? <Empty title="Nothing due today" hint="Add a task with the + button." /> : t.slice(0, 8).map((x) => <TaskRow key={x.id} task={x} today={ctx.today} compact />)}</>);
+  const [expanded, setExpanded] = useState(false);
+
+  const visibleTasks = expanded ? t : t.slice(0, 5);
+  const hasMore = t.length > 5;
+
+  return (
+    <>
+      <Title href="/tasks" link="All tasks">
+        All tasks
+      </Title>
+
+      {t.length === 0 ? (
+        <Empty
+          title="No tasks"
+          hint="Add a task with the + button."
+        />
+      ) : (
+        <>
+          {visibleTasks.map((x) => (
+            <TaskRow
+              key={x.id}
+              task={x}
+              today={ctx.today}
+              compact
+            />
+          ))}
+
+          {hasMore && (
+            <button
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              className="text-sm muted"
+              style={{
+                background: "none",
+                border: 0,
+                cursor: "pointer",
+                padding: "8px 0",
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              {expanded ? (
+                <>
+                  <ChevronUp size={15} />
+                  Show less
+                </>
+              ) : (
+                <>
+                  <ChevronDown size={15} />
+                  Show {t.length - 5} more
+                </>
+              )}
+            </button>
+          )}
+        </>
+      )}
+    </>
+  );
 }
 export function DeadlinesWidget({ data, ctx }) {
   const d = data.deadlines || [];
@@ -73,8 +132,10 @@ export function MoneyWidget({ data, ctx }) {
 export function ProjectsWidget({ data }) {
   const p = data.projects || [];
   return (<><Title href="/projects">Projects</Title>
-    {p.length === 0 ? <Empty title="No active projects" /> : p.map((x) => { const pct = x.total ? (x.done / x.total) * 100 : 0; return (
-      <Link href="/projects" key={x.id} className="block py-2"><div className="flex justify-between gap-2"><span className="trunc">{x.name}</span><span className="small muted">{x.done}/{x.total}</span></div><div className="mt-1.5"><Progress value={pct} label={`${x.name} progress`} /></div></Link>); })}</>);
+    {p.length === 0 ? <Empty title="No active projects" /> : p.map((x) => {
+      const pct = x.total ? (x.done / x.total) * 100 : 0; return (
+        <Link href="/projects" key={x.id} className="block py-2"><div className="flex justify-between gap-2"><span className="trunc">{x.name}</span><span className="small muted">{x.done}/{x.total}</span></div><div className="mt-1.5"><Progress value={pct} label={`${x.name} progress`} /></div></Link>);
+    })}</>);
 }
 export function NotesWidget({ data }) {
   const n = data.notes || [];
@@ -101,7 +162,7 @@ export function WeatherWidget({ ctx }) {
   useEffect(() => {
     if (!ctx.city) { setState({ status: "empty" }); return; }
     let dead = false; const key = "wx:" + ctx.city.toLowerCase();
-    try { const c = JSON.parse(sessionStorage.getItem(key) || "null"); if (c && Date.now() - c.at < 30 * 60 * 1000) { setState({ status: "ok", ...c.v }); return; } } catch {}
+    try { const c = JSON.parse(sessionStorage.getItem(key) || "null"); if (c && Date.now() - c.at < 30 * 60 * 1000) { setState({ status: "ok", ...c.v }); return; } } catch { }
     setState({ status: "loading" });
     (async () => {
       try {
@@ -109,7 +170,7 @@ export function WeatherWidget({ ctx }) {
         const p = g.results?.[0]; if (!p) throw new Error("City not found");
         const w = await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${p.latitude}&longitude=${p.longitude}&current=temperature_2m,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=1`)).json();
         const v = { name: p.name, temp: Math.round(w.current.temperature_2m), code: w.current.weather_code, wind: Math.round(w.current.wind_speed_10m), hi: Math.round(w.daily.temperature_2m_max[0]), lo: Math.round(w.daily.temperature_2m_min[0]) };
-        try { sessionStorage.setItem(key, JSON.stringify({ at: Date.now(), v })); } catch {}
+        try { sessionStorage.setItem(key, JSON.stringify({ at: Date.now(), v })); } catch { }
         if (!dead) setState({ status: "ok", ...v });
       } catch (e) { if (!dead) setState({ status: "error", msg: e.message === "City not found" ? "City not found. Check the spelling in Settings." : "Weather is unavailable right now." }); }
     })();
