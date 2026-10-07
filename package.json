@@ -1,6 +1,6 @@
 {
   "name": "personal-dashboard",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "description": "Lucifer's personal operating system — Next.js + PostgreSQL PWA (JavaScript only)",
   "scripts": {

@@ -4,11 +4,16 @@ import { LogOut } from "lucide-react";
 import PageHead from "@/components/ui/PageHead";
 import { Field, Segmented } from "@/components/ui/Fields";
 import ThemeSelector from "@/components/themes/ThemeSelector";
+import ThemeSlideshowSettings from "@/components/themes/ThemeSlideshowSettings";
+import QuickLinksManager from "@/components/quicklinks/QuickLinksManager";
+import { saveLayout } from "@/actions/settings";
+import { DEFAULT_LAYOUT } from "@/lib/layout";
+import Link from "next/link";
 import { useAction } from "@/components/ui/useAction";
 import { updateDisplayName, updatePreferences, setMotion } from "@/actions/settings";
 import { logoutAction } from "@/actions/auth";
 
-export default function SettingsClient({ user, settings, customThemes }) {
+export default function SettingsClient({ user, settings, customThemes, quickLinks }) {
   const { run, pending } = useAction(); const [name, setName] = useState(user.display_name); const [motion, setMo] = useState(settings.motion);
   const [p, setP] = useState({ weather_city: settings.weather_city, monthly_budget: settings.monthly_budget || "", currency: settings.currency });
   const [perm, setPerm] = useState(typeof Notification !== "undefined" ? Notification.permission : "unsupported");
@@ -23,6 +28,11 @@ export default function SettingsClient({ user, settings, customThemes }) {
         <div className="mb-5"><span className="label">Animations</span><Segmented value={motion} onChange={async (v) => { setMo(v); document.documentElement.setAttribute("data-motion", v); await run(() => setMotion(v)); }} options={[{ value: "full", label: "Full" }, { value: "reduced", label: "Reduced" }, { value: "off", label: "Off" }]} label="Animations" />
           <p className="small muted mt-1">Your device&apos;s “reduce motion” setting is always respected.</p></div>
         <ThemeSelector current={settings.theme} customThemes={customThemes} activeCustom={settings.active_custom_theme} /></section>
+      <ThemeSlideshowSettings customThemes={customThemes} />
+      <section className="card" id="dashboard"><div className="card-title">Dashboard</div>
+        <p className="small muted mb-3">Show, hide, reorder and resize widgets directly on the dashboard with <strong>Customize</strong>. Priority now, Timeline and Quick links are widgets too.</p>
+        <div className="flex gap-2 flex-wrap"><Link className="btn" href="/dashboard">Customize dashboard</Link><button className="btn" disabled={pending} onClick={async () => { if (confirm("Reset the dashboard to the default widgets and order?")) await run(() => saveLayout(DEFAULT_LAYOUT), { ok: "Dashboard reset" }); }}>Reset layout</button></div></section>
+      <QuickLinksManager links={quickLinks} />
       <section className="card"><div className="card-title">Preferences</div>
         <form className="form-grid two" onSubmit={async (e) => { e.preventDefault(); await run(() => updatePreferences(p), { ok: "Preferences saved" }); }}>
           <Field label="Weather city"><input className="input" value={p.weather_city} onChange={(e) => setP({ ...p, weather_city: e.target.value })} placeholder="e.g. Pune" /></Field>

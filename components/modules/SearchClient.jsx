@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Search } from "lucide-react";
 import { Empty, ErrorBox } from "@/components/ui/misc";
 
-const HREF = { tasks: "/tasks", notes: "/notes", projects: "/projects", bookmarks: "/bookmarks", ideas: "/ideas", deadlines: "/deadlines", files: "/files" };
+const HREF = { quicklinks: "/settings#quicklinks", activity: "/activity", tasks: "/tasks", notes: "/notes", projects: "/projects", bookmarks: "/bookmarks", ideas: "/ideas", deadlines: "/deadlines", files: "/files" };
 export default function SearchClient({ initial }) {
   const [q, setQ] = useState(initial); const [res, setRes] = useState(null); const [loading, setLoading] = useState(false); const [err, setErr] = useState(false); const [n, setN] = useState(0);
   useEffect(() => {

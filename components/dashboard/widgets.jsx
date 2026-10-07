@@ -9,6 +9,9 @@ import { relDay, urgency, fmtTime, fmtDuration, fmtDate, dateInTz, diffDays } fr
 import { money, activityText, relTime, STATUS_LABEL } from "@/lib/format";
 import { updatePreferences } from "@/actions/settings";
 import { useAction } from "@/components/ui/useAction";
+import PriorityCard from "@/components/today/PriorityCard";
+import TodayTimeline from "@/components/today/TodayTimeline";
+import QuickLinksWidget from "@/components/quicklinks/QuickLinksWidget";
 
 const Title = ({ children, href, link = "Open" }) => <div className="card-title"><span>{children}</span>{href && <Link href={href} className="small">{link}</Link>}</div>;
 
@@ -26,8 +29,9 @@ export function OverviewWidget({ data, ctx }) {
     <div className="flex items-baseline justify-between mb-4 gap-3 flex-wrap">
       <div className="sub">{now ? now.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: ctx.tz }) : "—"}</div>
     </div>
-    <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+    <div className="grid grid-cols-2 sm:grid-cols-6 gap-4">
       {stat(todayEvents.length, todayEvents.length === 1 ? "event" : "events")}
+      {stat(data.dlToday?.n ?? 0, (data.dlToday?.n ?? 0) === 1 ? "deadline due" : "deadlines due")}
       {stat(open, open === 1 ? "task open" : "tasks open")}
       {stat(doneN, "completed")}
       {stat(money(data.money?.today || 0, ctx.currency), "spent")}
@@ -117,4 +121,4 @@ export function WeatherWidget({ ctx }) {
     {state.status === "error" && <div className="small muted">{state.msg} <button className="btn btn-sm ml-1" onClick={() => setTick((t) => t + 1)}>Retry</button></div>}
     {state.status === "ok" && <div className="flex items-center gap-3"><CloudSun size={30} className="muted" /><div><div className="stat">{state.temp}°C</div><div className="sub">{WMO[state.code] || "—"} · {state.lo}°/{state.hi}° · {state.wind} km/h</div><div className="sub flex items-center gap-1"><MapPin size={11} />{state.name}</div></div></div>}</>);
 }
-export const WIDGET_COMPONENTS = { overview: OverviewWidget, tasks: TasksWidget, calendar: CalendarWidget, deadlines: DeadlinesWidget, money: MoneyWidget, projects: ProjectsWidget, notes: NotesWidget, focus: FocusWidget, weather: WeatherWidget, activity: ActivityWidget };
+export const WIDGET_COMPONENTS = { overview: OverviewWidget, priority: PriorityCard, timeline: TodayTimeline, quicklinks: QuickLinksWidget, tasks: TasksWidget, calendar: CalendarWidget, deadlines: DeadlinesWidget, money: MoneyWidget, projects: ProjectsWidget, notes: NotesWidget, focus: FocusWidget, weather: WeatherWidget, activity: ActivityWidget };

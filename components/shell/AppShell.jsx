@@ -10,21 +10,22 @@ import QuickAdd from "@/components/shell/QuickAdd";
 import CommandPalette from "@/components/shell/CommandPalette";
 import Modal from "@/components/ui/Modal";
 import { setTheme } from "@/actions/settings";
+import SlideshowProvider, { useThemeFx } from "@/components/shell/SlideshowProvider";
 
 function Shell({ user, currency, projects, children }) {
-  const path = usePathname(); const focus = useFocus();
+  const path = usePathname(); const focus = useFocus(); const fx = useThemeFx();
   const [palette, setPalette] = useState(false);
-  const [add, setAdd] = useState({ open: false, type: "task" });
+  const [add, setAdd] = useState({ open: false, type: "task", prefill: null });
   const [more, setMore] = useState(false);
   const [bell, setBell] = useState(false);
   const [notes, setNotes] = useState([]);
-  const [wipe, setWipe] = useState(0);
 
-  const openAdd = useCallback((type = "task") => { setPalette(false); setMore(false); setAdd({ open: true, type }); }, []);
+  const openAdd = useCallback((type = "task", prefill = null) => { setPalette(false); setMore(false); setAdd({ open: true, type, prefill }); }, []);
   const changeTheme = useCallback((id) => {
     document.documentElement.setAttribute("data-theme", id); document.documentElement.removeAttribute("style");
-    setWipe((n) => n + 1); setTimeout(() => setWipe(0), 700); setTheme(id);
-  }, []);
+    fx.play(); fx.setCurrent(id); setTheme(id);
+  }, [fx]);
+  useEffect(() => { try { if (path) localStorage.setItem("last-path", path); } catch {} }, [path]);
 
   useEffect(() => {
     const onKey = (e) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); setPalette((v) => !v); } };
@@ -91,13 +92,12 @@ function Shell({ user, currency, projects, children }) {
           {NAV.map((n) => <Link key={n.href} href={n.href} onClick={() => setMore(false)} className="card flex flex-col items-center gap-1 text-center small" style={{ padding: 12 }}><n.icon size={20} />{n.label}</Link>)}
         </div>
       </Modal>
-      <QuickAdd open={add.open} type={add.type} onType={(t) => setAdd({ open: true, type: t })} onClose={() => setAdd((a) => ({ ...a, open: false }))} projects={projects} currency={currency} />
-      <CommandPalette open={palette} onClose={() => setPalette(false)} onAdd={openAdd} onTheme={changeTheme} />
-      {wipe > 0 && <div key={wipe} className="theme-wipe" aria-hidden />}
+      <QuickAdd open={add.open} type={add.type} prefill={add.prefill} onType={(t) => setAdd((a) => ({ ...a, open: true, type: t }))} onClose={() => setAdd((a) => ({ ...a, open: false }))} projects={projects} currency={currency} />
+      <CommandPalette open={palette} onClose={() => setPalette(false)} onAdd={openAdd} onTheme={changeTheme} onSlideshow={(p) => fx.update(p)} slideshowOn={fx.state.enabled} />
     </div>
   );
 }
 
 export default function AppShell(props) {
-  return <ToastProvider><FocusProvider><Shell {...props} /></FocusProvider></ToastProvider>;
+  return <ToastProvider><SlideshowProvider initial={props.slideshow}><FocusProvider><Shell {...props} /></FocusProvider></SlideshowProvider></ToastProvider>;
 }

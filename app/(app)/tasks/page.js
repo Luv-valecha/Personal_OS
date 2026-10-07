@@ -13,5 +13,5 @@ export default async function TasksPage({ searchParams }) {
       GROUP BY t.id, p.name ORDER BY t.completed, t.due_date NULLS LAST, t.created_at DESC LIMIT 600`, [user.id]),
     query("SELECT id, name FROM projects WHERE user_id=$1 AND status NOT IN ('archived') ORDER BY name", [user.id]),
   ]);
-  return <TasksClient tasks={tasks} projects={projects} today={today} initialQuery={sp?.q || ""} />;
+  return <TasksClient tasks={tasks} projects={projects} today={today} initialQuery={sp?.q || ""} openId={sp?.open || ""} initialView={sp?.view || ""} />;
 }

@@ -1,8 +1,44 @@
-# Personal Dashboard — Lucifer's personal OS
+# Lucifer's OS — V2.0
 
 A minimal, fast, installable (PWA) personal operating system: tasks, calendar, deadlines, notes, bookmarks, projects, ideas, focus timer, expenses, files, developer projects, activity feed, global search, command palette, a customizable dashboard and **18 built-in themes + a custom theme builder**.
 
 **JavaScript only (no TypeScript)** · Next.js 16 App Router · PostgreSQL · Tailwind CSS 4 + CSS variables · deployable on free tiers.
+
+## What's new in V2.0
+V2 is an evolution of V1 — every V1 module, the theme system, auth, PWA and the project ↔ tasks/notes/deadlines/files relationships are unchanged.
+
+* **Today cockpit** — a new **Today** view (tab next to *Dashboard*, also in the sidebar and `Ctrl+K`) answering “what should I do next?”: **Priority now** card, compact **timeline** (events + finished focus sessions + deadlines/tasks “anytime today”), today's tasks, deadlines this week, focus, things needing attention, and project work due today. *Priority now* and *Timeline* are also normal dashboard widgets (show/hide/reorder/resize still work); the overview card gained a “deadlines due” count.
+* **Priority Now (no AI)** — deterministic score in `lib/priority.js`: overdue (very high, grows with days late) › due today › high priority › due tomorrow › due soon, plus bonuses for a high-priority / in-progress project, task age and “already worked on today”. It reuses the existing task priority and project fields. Optional per-task **estimate (minutes)** is shown as “~45 min estimated”. **Start focus** opens Focus, shows the task title, starts the timer (estimate, capped 5–90 min, else 25) and links the session to the task (`focus_sessions.task_id`); finishing records **one** session + one activity entry.
+* **Command palette (Ctrl+K / ⌘K, search icon on mobile)** — suggestions when empty (continue where you left off, today's priorities, start focus on your priority, urgent deadlines, today's schedule, add quick link); smart queries (`overdue`, `today`, `urgent`) with live counts; scoped pickers (*Open project… / note… / task…*); grouped search across quick links, projects, tasks, notes, bookmarks, deadlines, files, ideas and activity (debounced 300 ms + 60 s client cache); theme list; *Start/Stop theme slideshow*.
+  **Deterministic natural-language actions** (no LLM): `add task: finish ML report tomorrow` · `add idea: build an AI email organizer` · `add note: …` · `add project: …` · `add expense 250 food lunch` · `add deadline: DBMS friday` · `add event: Gym tomorrow 6pm` · `add bookmark github.com/x` · `add link: GitHub https://github.com` · `start 45 minute focus [on …]` · `open tasks`. Commands only run directly when an explicit verb is used and all required parts are understood; otherwise the structured form opens pre-filled (e.g. an event without a time). Parser: `lib/commands.js`.
+* **Quick Links** — new widget (default on) + management in **Settings → Quick links**: add, edit, delete, pin/favourite, reorder (up/down buttons, keyboard accessible), category, description, 20 icons (or first-letter tile). Links can be external (`https://…`, new tab with `noopener`) or **internal** (`/tasks`, `/today`… client-side navigation). Only `http(s)` URLs and internal paths are accepted. Favicons are intentionally not fetched (third-party requests; blocked by the CSP). Quick links are searchable in `Ctrl+K` and global search.
+* **Theme slideshow** — *Settings → Appearance → Theme slideshow*: on/off, choose any combination of built-in and your custom themes (≥ 2), interval 5 min → 24 h presets or custom (min 5 min), current / next / countdown, **skip, pause/resume, stop**. Stored per user in the database; the next-switch time is also stored, so it keeps working across refresh, logout/login, devices and PWA restarts. If a switch became due while the app was closed it is applied **on the server before the page renders** (no flash). Switching is a one-shot lightweight overlay (skipped with reduced-motion / animations Off) — no reload, no layout shift. A manual theme pick keeps the slideshow running and restarts its countdown.
+* **Mobile note editor fix** — see below.
+
+### Root cause of the mobile Note bug
+`components/ui/Modal.jsx` ran its “focus first field + restore previous focus” effect with `onClose` in its dependency list. The note editor passed a *new* `close` function on every render, i.e. on every keystroke, so after each character the effect cleaned up (restoring focus to the element that was focused when the modal opened, blurring the textarea → keyboard closes) and re-ran (focusing the first input). Fix: `onClose` is kept in a ref, the effect depends only on `open`, and it never steals focus if the user is already inside the dialog. This also protects every other modal in the app. The note editor itself was not rewritten.
+
+### Also fixed (found while testing)
+* Finished focus sessions were never saved in V1 (SQL parameter typing error in `actions/focus.js`) — fixed; sessions are now recorded and linked to tasks.
+* Login form no longer clears the email after a failed attempt.
+
+## Upgrading from V1 to V2 (keeps all your data)
+```bash
+git pull   # or replace the project files with the V2 ones (keep your .env.local)
+npm install
+npm run db:migrate     # applies db/migrations/002_v2.sql — additive only
+npm run build && npm run start      # or push to GitHub → Vercel redeploys
+```
+`002_v2.sql` only **adds**: table `quick_links`; columns `dashboard_settings.slideshow_*` (5), `tasks.estimate_minutes`, `focus_sessions.task_id`; indexes. Nothing is dropped or rewritten; re-running is safe. Existing users get the new widgets slotted into their saved dashboard layout automatically (a custom layout keeps its order). **Production (Vercel + Supabase):** run `npm run db:migrate` locally with your production `DATABASE_URL` *before/while* deploying. No new environment variables.
+
+## Using the V2 settings
+* **Today:** `/today` or the *Today* tab on the dashboard.
+* **Quick links:** dashboard widget → *Add link* / *Manage*, or Settings → Quick links.
+* **Theme slideshow:** Settings → Appearance → Theme slideshow (anchor `/settings#slideshow`).
+* **Dashboard:** Settings → Dashboard → *Customize* / *Reset layout*.
+
+## V2 testing notes
+Verified against a local PostgreSQL with a production build and headless Chromium (desktop + Android-style touch emulation): V1 data preserved through the migration; mobile note typing (new, long, rotated, edit existing, quick-add sheet) with zero focus loss; Priority → Focus → one recorded session; palette suggestions/smart queries/natural-language actions; Quick Links CRUD, reorder, internal/external opening, user isolation; slideshow enable/skip/pause/resume/stop, timer-driven switching, server-side catch-up on load, persistence across logout/login, custom-theme participation, reduced motion; V1 regression (tasks, notes, markdown, pin/archive, bookmarks, expenses, uploads, projects, calendar, deadlines). **Not testable here:** real phone keyboards (emulated via focus tracking), real PWA install/standalone on a device, real service-worker offline behaviour on HTTPS, iOS Safari.
 
 ## Features
 Dashboard (10 widgets: show/hide, reorder, resize, saved per user) · Tasks (quick natural-language add, subtasks, tags, recurrence, Today/Upcoming/Overdue/Completed/Projects views) · Calendar (day/week/month, recurrence, reminders) · Deadlines (colour urgency) · Notes (Markdown, code blocks, pin, archive, tags) · Bookmarks (auto title with graceful fallback) · Projects (progress, links, tasks/notes/files) · Ideas (+ random idea) · Focus (Pomodoro/custom, breaks, pause/resume, daily/weekly/total, runs across pages) · Expenses (day/week/month, categories, charts, budget) · Files (upload/download/delete) · Developer projects · Activity timeline (filter + paging) · Global search (debounced) · Ctrl/⌘+K command palette (mobile: search icon + “+” button) · Weather (Open-Meteo, no key, optional) · In-app notifications (+ optional browser alerts).
@@ -139,4 +175,6 @@ Default: PostgreSQL `bytea` (`app/api/files`). To use S3/R2/B2 or local disk lat
 * Rate limiting is in-memory (per serverless instance); use an external store if you expose registration publicly.
 * Recurring tasks create the next occurrence when completed; there is no per-occurrence editing of recurring calendar events.
 * Browser alerts fire only while the app is open/installed (no push server — that would need paid/extra infrastructure).
+* Quick-link favicons are not fetched (privacy/CSP); icons are chosen from a built-in set.
+* Theme slideshow is evaluated when the app is open/loaded (no background push); it catches up at the next load.
 * A rare React hydration warning (#418) has been observed in the browser console on Settings/Expenses in production builds; React recovers automatically and no visible difference was found.

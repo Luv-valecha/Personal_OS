@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { ArrowUp, ArrowDown, Eye, EyeOff, Maximize2, SlidersHorizontal, Check, RotateCcw } from "lucide-react";
+import ViewTabs from "@/components/today/ViewTabs";
 import { WIDGET_COMPONENTS } from "@/components/dashboard/widgets";
 import { WIDGETS, DEFAULT_LAYOUT } from "@/lib/layout";
 import { saveLayout } from "@/actions/settings";
@@ -15,7 +16,7 @@ export default function DashboardClient({ layout: initial, data, ctx, greeting, 
   const shown = edit ? layout : layout.filter((w) => w.visible);
   return (<>
     <div className="page-head">
-      <div><h1 style={{ fontSize: 26 }}>{greeting}</h1><p className="sub">{dateLabel}</p></div>
+      <div><h1 style={{ fontSize: 26 }}>{greeting}</h1><p className="sub">{dateLabel}</p><div className="mt-3"><ViewTabs active="dashboard" /></div></div>
       <div className="flex gap-2">
         {edit ? <>
           <button className="btn btn-ghost" onClick={() => setLayout(DEFAULT_LAYOUT)}><RotateCcw size={15} /> Reset</button>

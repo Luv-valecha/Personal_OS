@@ -10,8 +10,8 @@ import { createEvent, updateEvent, deleteEvent } from "@/actions/events";
 import { addDays, startOfWeek, startOfMonth, dateInTz, fmtTime, zonedToIso, isoToLocalInput } from "@/lib/dates";
 
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-export default function CalendarClient({ events, today, tz }) {
-  const [view, setView] = useState("month"); const [cursor, setCursor] = useState(today); const [edit, setEdit] = useState(null);
+export default function CalendarClient({ events, today, tz, initialView = "month" }) {
+  const [view, setView] = useState(initialView); const [cursor, setCursor] = useState(today); const [edit, setEdit] = useState(null);
   const byDay = useMemo(() => { const m = {}; for (const e of events) (m[dateInTz(e.starts_at, tz)] ||= []).push(e); return m; }, [events, tz]);
   const shift = (dir) => setCursor((c) => view === "month" ? (() => { const d = new Date(c + "T00:00:00Z"); d.setUTCMonth(d.getUTCMonth() + dir, 1); return d.toISOString().slice(0, 10); })() : addDays(c, dir * (view === "week" ? 7 : 1)));
   const title = view === "month" ? new Date(cursor + "T00:00:00Z").toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" })

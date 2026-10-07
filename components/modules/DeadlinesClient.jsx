@@ -9,9 +9,10 @@ import { useAction } from "@/components/ui/useAction";
 import { createDeadline, updateDeadline, deleteDeadline, toggleDeadline } from "@/actions/deadlines";
 import { relDay, urgency, fmtDate } from "@/lib/dates";
 
-export default function DeadlinesClient({ deadlines, projects, today }) {
+export default function DeadlinesClient({ deadlines, projects, today, filter: initialFilter = "" }) {
+  const [filter, setFilter] = useState(initialFilter);
   const { run } = useAction(); const [edit, setEdit] = useState(null); const [showDone, setShowDone] = useState(false);
-  const open = deadlines.filter((d) => !d.completed); const done = deadlines.filter((d) => d.completed);
+  const open = deadlines.filter((d) => !d.completed).filter((d) => !filter || (filter === "overdue" ? d.due_date < today : d.due_date <= today)); const done = deadlines.filter((d) => d.completed);
   const Row = ({ d }) => (
     <div className="list-row">
       <input type="checkbox" className="check" checked={d.completed} onChange={() => run(() => toggleDeadline(d.id))} aria-label={`Complete ${d.title}`} />
@@ -23,6 +24,7 @@ export default function DeadlinesClient({ deadlines, projects, today }) {
   return (<>
     <PageHead title="Deadlines" sub="Colour shows urgency: red ≤ 1 day, orange ≤ 4, yellow ≤ 10, green after that.">
       <button className="btn btn-primary" onClick={() => setEdit({})}><Plus size={16} /> Add deadline</button></PageHead>
+    {filter && <div className="mb-3 flex items-center gap-2 small"><span className="chip chip-active">{filter === "overdue" ? "Overdue only" : "Due today or overdue"}</span><button className="btn btn-ghost btn-sm" onClick={() => setFilter("")}>Show all</button></div>}
     <div className="card" style={{ padding: 8 }}>
       {open.length === 0 ? <Empty title="No upcoming deadlines" hint="Add one to keep it on your radar." /> : open.map((d) => <Row key={d.id} d={d} />)}
     </div>

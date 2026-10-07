@@ -5,12 +5,13 @@ import { THEME_GROUPS, DEFAULT_CUSTOM, customThemeStyle } from "@/lib/themes";
 import { setTheme, saveCustomTheme, applyCustomTheme, deleteCustomTheme } from "@/actions/settings";
 import { useAction } from "@/components/ui/useAction";
 import { Field } from "@/components/ui/Fields";
+import { useThemeFx } from "@/components/shell/SlideshowProvider";
 
 export default function ThemeSelector({ current, customThemes, activeCustom }) {
-  const { run, pending } = useAction(); const [sel, setSel] = useState(current); const [wipe, setWipe] = useState(0);
-  const animate = () => { setWipe((n) => n + 1); setTimeout(() => setWipe(0), 700); };
-  async function pick(id) { document.documentElement.setAttribute("data-theme", id); document.documentElement.removeAttribute("style"); setSel(id); animate(); await run(() => setTheme(id)); }
-  async function useCustom(t) { applyStyle(t.tokens); setSel("custom"); animate(); await run(() => applyCustomTheme(t.id)); }
+  const { run, pending } = useAction(); const fx = useThemeFx(); const [sel, setSel] = useState(current);
+  const animate = () => fx.play();
+  async function pick(id) { document.documentElement.setAttribute("data-theme", id); document.documentElement.removeAttribute("style"); setSel(id); animate(); fx.setCurrent(id); await run(() => setTheme(id)); }
+  async function useCustom(t) { applyStyle(t.tokens); setSel("custom"); animate(); fx.setCurrent("custom:" + t.id); await run(() => applyCustomTheme(t.id)); }
   return (<div className="flex flex-col gap-6">
     {THEME_GROUPS.map((g) => (<div key={g.id}><div className="sub mb-2">{g.label}</div>
       <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))" }}>
@@ -23,7 +24,6 @@ export default function ThemeSelector({ current, customThemes, activeCustom }) {
         {sel === "custom" && activeCustom === t.id ? <span className="chip chip-active">Active</span> : <button className="btn btn-sm" onClick={() => useCustom(t)}>Use</button>}
         <button className="btn btn-ghost btn-icon btn-sm" onClick={() => confirm(`Delete “${t.name}”?`) && run(() => deleteCustomTheme(t.id), { ok: "Theme deleted" })} aria-label={`Delete ${t.name}`}><Trash2 size={14} /></button></div>))}</div></div>}
     <CustomBuilder onApplied={() => { setSel("custom"); animate(); }} pending={pending} />
-    {wipe > 0 && <div key={wipe} className="theme-wipe" aria-hidden />}
   </div>);
 }
 function applyStyle(tokens) {

@@ -1,0 +1,3 @@
+import { GitBranch, Mail, HardDrive, BookOpen, GraduationCap, Globe, Code2, MessageSquare, Video, Music, ShoppingCart, Wallet, Star, Home, Folder, CheckSquare, CalendarDays, Timer, StickyNote } from "lucide-react";
+export const ICON_MAP = { github: GitBranch, mail: Mail, drive: HardDrive, book: BookOpen, school: GraduationCap, globe: Globe, code: Code2, chat: MessageSquare, video: Video, music: Music, cart: ShoppingCart, wallet: Wallet, star: Star, home: Home, folder: Folder, tasks: CheckSquare, calendar: CalendarDays, timer: Timer, note: StickyNote };
+export const isInternal = (url) => url.startsWith("/");

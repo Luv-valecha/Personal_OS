@@ -14,7 +14,8 @@ export async function setTheme(theme) {
   return safe(async () => {
     const uid = await requireUserId();
     if (!isThemeId(theme)) throw fail("Unknown theme");
-    await query("UPDATE dashboard_settings SET theme=$2, updated_at=now() WHERE user_id=$1", [uid, theme]);
+    // A manual choice keeps the slideshow running but restarts its countdown from this theme.
+    await query("UPDATE dashboard_settings SET theme=$2, active_custom_theme=CASE WHEN $2='custom' THEN active_custom_theme ELSE NULL END, slideshow_next_at=CASE WHEN slideshow_enabled AND NOT slideshow_paused THEN now() + make_interval(mins => slideshow_interval_min) ELSE slideshow_next_at END, updated_at=now() WHERE user_id=$1", [uid, theme]);
     (await cookies()).set("theme", theme, COOKIE_OPTS); refresh(); return true;
   });
 }

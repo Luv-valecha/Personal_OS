@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import PageHead from "@/components/ui/PageHead";
 import Modal from "@/components/ui/Modal";
@@ -12,9 +12,10 @@ import { addDays } from "@/lib/dates";
 
 const VIEWS = [{ value: "today", label: "Today" }, { value: "upcoming", label: "Upcoming" }, { value: "overdue", label: "Overdue" }, { value: "completed", label: "Completed" }, { value: "projects", label: "Projects" }];
 
-export default function TasksClient({ tasks, projects, today, initialQuery }) {
+export default function TasksClient({ tasks, projects, today, initialQuery, openId, initialView }) {
   const { run, pending } = useAction();
-  const [view, setView] = useState("today"); const [text, setText] = useState(""); const [q, setQ] = useState(initialQuery); const [edit, setEdit] = useState(null); const [limit, setLimit] = useState(50);
+  const [view, setView] = useState(VIEWS.some((v) => v.value === initialView) ? initialView : "today"); const [text, setText] = useState(""); const [q, setQ] = useState(initialQuery); const [edit, setEdit] = useState(null); const [limit, setLimit] = useState(50);
+  useEffect(() => { if (openId) { const t = tasks.find((x) => x.id === openId); if (t) setEdit(t); } }, [openId]); // eslint-disable-line
   const counts = useMemo(() => ({
     today: tasks.filter((t) => !t.completed && t.due_date === today).length,
     overdue: tasks.filter((t) => !t.completed && t.due_date && t.due_date < today).length,
@@ -54,7 +55,7 @@ export default function TasksClient({ tasks, projects, today, initialQuery }) {
 
 function TaskEditor({ task, projects, onClose, today }) {
   const { run, pending } = useAction();
-  const [f, setF] = useState({ title: task.title, notes: task.notes, due_date: task.due_date || "", priority: task.priority, project_id: task.project_id || "", tags: tagsToString(task.tags), recurrence: task.recurrence });
+  const [f, setF] = useState({ title: task.title, notes: task.notes, due_date: task.due_date || "", priority: task.priority, project_id: task.project_id || "", tags: tagsToString(task.tags), recurrence: task.recurrence, estimate_minutes: task.estimate_minutes ?? "" });
   const [sub, setSub] = useState(""); const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }));
   async function save(e) { e.preventDefault(); const r = await run(() => updateTask(task.id, { ...f, due_date: f.due_date || null, project_id: f.project_id || null }), { ok: "Task updated" }); if (r) onClose(); }
   async function del() { if (!confirm("Delete this task?")) return; if (await run(() => deleteTask(task.id), { ok: "Task deleted" })) onClose(); }
@@ -68,6 +69,7 @@ function TaskEditor({ task, projects, onClose, today }) {
             <button type="button" className="btn btn-sm" onClick={() => setF((s) => ({ ...s, due_date: today }))}>Today</button><button type="button" className="btn btn-sm" onClick={() => setF((s) => ({ ...s, due_date: addDays(today, 1) }))}>Tmrw</button></div></Field>
           <Field label="Priority"><PrioritySelect value={f.priority} onChange={set("priority")} /></Field>
           <Field label="Project"><ProjectSelect projects={projects} value={f.project_id} onChange={set("project_id")} /></Field>
+          <Field label="Estimate (minutes, optional)"><input className="input" type="number" min="1" max="1440" inputMode="numeric" value={f.estimate_minutes} onChange={set("estimate_minutes")} placeholder="45" /></Field>
           <Field label="Repeats"><select className="select" value={f.recurrence} onChange={set("recurrence")}><option value="none">Never</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></Field>
         </div>
         <Field label="Tags (comma separated)"><input className="input" value={f.tags} onChange={set("tags")} /></Field>

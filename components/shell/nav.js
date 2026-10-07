@@ -1,5 +1,6 @@
-import { LayoutDashboard, CheckSquare, CalendarDays, Flag, StickyNote, Bookmark, FolderKanban, Lightbulb, Timer, Wallet, Files, Code2, Activity, Search, Settings } from "lucide-react";
+import { Sun, LayoutDashboard, CheckSquare, CalendarDays, Flag, StickyNote, Bookmark, FolderKanban, Lightbulb, Timer, Wallet, Files, Code2, Activity, Search, Settings } from "lucide-react";
 export const NAV = [
+  { href: "/today", label: "Today", icon: Sun },
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/tasks", label: "Tasks", icon: CheckSquare },
   { href: "/calendar", label: "Calendar", icon: CalendarDays },
