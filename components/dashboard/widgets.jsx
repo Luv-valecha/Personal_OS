@@ -47,7 +47,7 @@ export function OverviewWidget({ data, ctx }) {
 }
 
 export function TasksWidget({ data, ctx }) {
-  const t = data.tasks || [];
+  const t = (data.tasks || []).filter(task => task.completed === false);
   const [expanded, setExpanded] = useState(false);
 
   const visibleTasks = expanded ? t : t.slice(0, 5);
