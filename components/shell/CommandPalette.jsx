@@ -18,8 +18,8 @@ import { createEvent } from "@/actions/events";
 import { createQuickLink } from "@/actions/quicklinks";
 import { startSlideshow, slideshowControl } from "@/actions/slideshow";
 
-const HREF = { tasks: "/tasks", notes: "/notes", projects: "/projects", bookmarks: "/bookmarks", ideas: "/ideas", deadlines: "/deadlines", files: "/files", activity: "/activity", quicklinks: "/settings#quicklinks" };
-const LABEL = { quicklinks: "Quick links", projects: "Projects", tasks: "Tasks", notes: "Notes", bookmarks: "Bookmarks", deadlines: "Deadlines", files: "Files", ideas: "Ideas", activity: "Activity" };
+const HREF = { splits: "/splits", tasks: "/tasks", notes: "/notes", projects: "/projects", bookmarks: "/bookmarks", ideas: "/ideas", deadlines: "/deadlines", files: "/files", activity: "/activity", quicklinks: "/settings#quicklinks" };
+const LABEL = { quicklinks: "Quick links", splits: "Splits", projects: "Projects", tasks: "Tasks", notes: "Notes", bookmarks: "Bookmarks", deadlines: "Deadlines", files: "Files", ideas: "Ideas", activity: "Activity" };
 const SCOPES = { project: "projects", note: "notes", task: "tasks" };
 const CREATORS = { task: (p) => quickAddTask(p.text), idea: createIdea, note: createNote, project: createProject, bookmark: createBookmark, expense: createExpense, deadline: createDeadline, event: createEvent, link: createQuickLink };
 
@@ -98,6 +98,9 @@ export default function CommandPalette({ open, onClose, onAdd, onTheme, onSlides
       { id: "n-today", label: "Open Today", icon: Sun, run: () => go("/today") }, { id: "n-dash", label: "Open Dashboard", icon: LayoutDashboard, run: () => go("/dashboard") },
       { id: "n-tasks", label: "Open Tasks", icon: CheckSquare, run: () => go("/tasks") }, { id: "n-cal", label: "Open Calendar", icon: CalendarDays, run: () => go("/calendar") },
       { id: "n-proj", label: "Open Projects", icon: FolderKanban, run: () => go("/projects") },
+      { id: "jarvis", label: "Ask JARVIS…", icon: Wand2, run: () => go("/dashboard#jarvis") },
+      { id: "n-music", label: "Open Music", icon: Play, run: () => go("/music") }, { id: "n-splits", label: "Open Splits", icon: Layers, run: () => go("/splits") },
+      { id: "n-exp", label: "Open Expense analytics", icon: Search, run: () => go("/expenses") },
       { id: "search", label: "Search everything", icon: Search, run: () => go("/search") },
       { id: "od", label: "Show overdue tasks", icon: AlertTriangle, run: () => go("/tasks?view=overdue") },
       { id: "tt", label: "Show today's tasks", icon: ListChecks, run: () => go("/tasks?view=today") },
@@ -134,7 +137,7 @@ export default function CommandPalette({ open, onClose, onAdd, onTheme, onSlides
     for (const type of order) for (const r of found[type] || []) {
       const ql = type === "quicklinks";
       add({ id: type + r.id, label: r.title, sub: ql ? (r.url.startsWith("/") ? r.url : r.url.replace(/^https?:\/\/(www\.)?/, "")) : r.snippet || r.domain || r.status || r.action || "", group: scope ? `Open ${scope.slice(0, -1)}` : LABEL[type], icon: ql ? Link2 : FileText, hint: ql ? "Open" : undefined,
-        run: () => { if (ql) { if (r.url.startsWith("/")) go(r.url); else { window.open(r.url, "_blank", "noopener,noreferrer"); onClose(); } } else if (type === "tasks") go(`/tasks?open=${r.id}`); else go(HREF[type] + (type === "files" ? "" : `?q=${encodeURIComponent(r.title)}`)); } });
+        run: () => { if (ql) { if (r.url.startsWith("/")) go(r.url); else { window.open(r.url, "_blank", "noopener,noreferrer"); onClose(); } } else if (type === "tasks") go(`/tasks?open=${r.id}`); else if (type === "splits") go(`/splits?friend=${r.id}`); else go(HREF[type] + (type === "files" ? "" : `?q=${encodeURIComponent(r.title)}`)); } });
     }
     return out;
   }, [q, mode, scope, ctx, found, intent, focus?.t, slideshowOn]); // eslint-disable-line

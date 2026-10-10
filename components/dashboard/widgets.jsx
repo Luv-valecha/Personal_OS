@@ -3,13 +3,16 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { CloudSun, MapPin } from "lucide-react";
 import TaskRow from "@/components/tasks/TaskRow";
+import SortableTaskList from "@/components/tasks/SortableTaskList";
+import SortSelect from "@/components/tasks/SortSelect";
+import { sortTasks } from "@/lib/tasksort";
+import { setTaskSort } from "@/actions/tasks";
 import { Empty, Progress } from "@/components/ui/misc";
 import { useFocus, fmtClock } from "@/components/shell/FocusProvider";
 import { relDay, urgency, fmtTime, fmtDuration, fmtDate, dateInTz, diffDays } from "@/lib/dates";
 import { money, activityText, relTime, STATUS_LABEL } from "@/lib/format";
 import { updatePreferences } from "@/actions/settings";
 import { useAction } from "@/components/ui/useAction";
-import { ChevronDown, ChevronUp } from "lucide-react";
 import PriorityCard from "@/components/today/PriorityCard";
 import TodayTimeline from "@/components/today/TodayTimeline";
 import QuickLinksWidget from "@/components/quicklinks/QuickLinksWidget";
@@ -45,64 +48,82 @@ export function OverviewWidget({ data, ctx }) {
     </div>
   </>);
 }
-
 export function TasksWidget({ data, ctx }) {
-  const t = (data.tasks || []).filter(task => task.completed === false);
+  const { run, pending } = useAction();
+  const [mode, setMode] = useState(ctx.taskSort || "manual");
   const [expanded, setExpanded] = useState(false);
 
-  const visibleTasks = expanded ? t : t.slice(0, 5);
-  const hasMore = t.length > 5;
+  useEffect(() => {
+    setMode(ctx.taskSort || "manual");
+  }, [ctx.taskSort]);
+
+  const allTasks = sortTasks(data.tasks || [], mode);
+  const tasks = expanded ? allTasks : allTasks.slice(0, 5);
+
+  const change = async (m) => {
+    const prev = mode;
+    setMode(m);
+
+    const r = await run(() => setTaskSort(m));
+
+    if (!r) setMode(prev);
+  };
 
   return (
     <>
-      <Title href="/tasks" link="All tasks">
-        All tasks
-      </Title>
+      <div className="card-title">
+        <span>All tasks ({allTasks.length})</span>
 
-      {t.length === 0 ? (
+        <span className="flex items-center gap-3">
+          <SortSelect
+            value={mode}
+            onChange={change}
+            pending={pending}
+          />
+        </span>
+      </div>
+
+      {allTasks.length === 0 ? (
         <Empty
-          title="No tasks"
+          title="No tasks yet"
           hint="Add a task with the + button."
         />
       ) : (
         <>
-          {visibleTasks.map((x) => (
-            <TaskRow
-              key={x.id}
-              task={x}
-              today={ctx.today}
-              compact
-            />
-          ))}
+          <SortableTaskList
+            tasks={tasks}
+            today={ctx.today}
+            compact
+            canDrag={mode === "manual"}
+          />
 
-          {hasMore && (
-            <button
-              type="button"
-              onClick={() => setExpanded((v) => !v)}
-              className="text-sm muted"
-              style={{
-                background: "none",
-                border: 0,
-                cursor: "pointer",
-                padding: "8px 0",
-                width: "100%",
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-              }}
+          {allTasks.length > 5 && (
+            <div style={{ marginTop: "8px", textAlign: "center" }}>
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => setExpanded(!expanded)}
+              >
+                {expanded
+                  ? "Show less"
+                  : `Show all ${allTasks.length} tasks`}
+              </button>
+            </div>
+          )}
+
+          {mode !== "manual" && allTasks.length > 1 && (
+            <p
+              className="small muted"
+              style={{ margin: "8px 0 0" }}
             >
-              {expanded ? (
-                <>
-                  <ChevronUp size={15} />
-                  Show less
-                </>
-              ) : (
-                <>
-                  <ChevronDown size={15} />
-                  Show {t.length - 5} more
-                </>
-              )}
-            </button>
+              Sorted automatically. Switch to{" "}
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => change("manual")}
+              >
+                Manual
+              </button>{" "}
+              to drag-reorder (your saved order is kept).
+            </p>
           )}
         </>
       )}
@@ -129,6 +150,12 @@ export function MoneyWidget({ data, ctx }) {
       <div><div className="stat" style={{ fontSize: 20 }}>{money(m.month, ctx.currency)}</div><div className="sub">Month</div></div></div>
     <div className="mt-4">{ctx.budget > 0 ? <><div className="flex justify-between small muted mb-1"><span>Budget</span><span>{Math.round(pct)}% of {money(ctx.budget, ctx.currency)}</span></div><Progress value={pct} label="Monthly budget used" /></> : <Link href="/settings" className="small muted">Set a monthly budget →</Link>}</div></>);
 }
+export function SplitsWidget({ data, ctx }) {
+  const f = data.splits || []; const owed = f.reduce((s, x) => s + Math.max(0, x.balance), 0), owe = f.reduce((s, x) => s + Math.max(0, -x.balance), 0); const open = f.filter((x) => Math.abs(x.balance) > 0.004).slice(0, 3);
+  return (<><Title href="/splits">Splits</Title>
+    <div className="grid grid-cols-2 gap-2"><div><div className="stat" style={{ fontSize: 20, color: "var(--c-green)" }}>{money(owed, ctx.currency)}</div><div className="sub">You are owed</div></div><div><div className="stat" style={{ fontSize: 20, color: "var(--c-red)" }}>{money(owe, ctx.currency)}</div><div className="sub">You owe</div></div></div>
+    <div className="mt-3">{f.length === 0 ? <Link href="/splits" className="small muted">Add a friend to start tracking →</Link> : open.length === 0 ? <div className="small muted">Everyone is settled up.</div> : open.map((x) => <Link key={x.id} href={`/splits?friend=${x.id}`} className="list-row small"><span className="grow trunc">{x.name}</span><span style={{ color: x.balance > 0 ? "var(--c-green)" : "var(--c-red)" }}>{x.balance > 0 ? "owes " : "you owe "}{money(Math.abs(x.balance), ctx.currency)}</span></Link>)}</div></>);
+}
 export function ProjectsWidget({ data }) {
   const p = data.projects || [];
   return (<><Title href="/projects">Projects</Title>
@@ -153,7 +180,7 @@ export function FocusWidget({ data }) {
 export function ActivityWidget({ data, ctx }) {
   const a = data.activity || [];
   return (<><Title href="/activity">Activity</Title>
-    {a.length === 0 ? <Empty title="No activity yet" /> : a.slice(0, 6).map((x) => <div key={x.id} className="list-row small"><span className="muted" style={{ width: 62 }}>{relTime(x.created_at, ctx.tz)}</span><span className="grow trunc">{activityText(x)}</span></div>)}</>);
+    {a.length === 0 ? <Empty title="No activity yet" /> : a.slice(0, 6).map((x) => <div key={x.id} className="list-row small"><span className="muted" style={{ width: 62 }} suppressHydrationWarning>{relTime(x.created_at, ctx.tz)}</span><span className="grow trunc">{activityText(x)}</span></div>)}</>);
 }
 
 const WMO = { 0: "Clear", 1: "Mostly clear", 2: "Partly cloudy", 3: "Overcast", 45: "Fog", 48: "Fog", 51: "Light drizzle", 53: "Drizzle", 55: "Drizzle", 61: "Light rain", 63: "Rain", 65: "Heavy rain", 71: "Snow", 73: "Snow", 75: "Heavy snow", 80: "Showers", 81: "Showers", 82: "Heavy showers", 95: "Thunderstorm", 96: "Thunderstorm", 99: "Thunderstorm" };
@@ -182,4 +209,4 @@ export function WeatherWidget({ ctx }) {
     {state.status === "error" && <div className="small muted">{state.msg} <button className="btn btn-sm ml-1" onClick={() => setTick((t) => t + 1)}>Retry</button></div>}
     {state.status === "ok" && <div className="flex items-center gap-3"><CloudSun size={30} className="muted" /><div><div className="stat">{state.temp}°C</div><div className="sub">{WMO[state.code] || "—"} · {state.lo}°/{state.hi}° · {state.wind} km/h</div><div className="sub flex items-center gap-1"><MapPin size={11} />{state.name}</div></div></div>}</>);
 }
-export const WIDGET_COMPONENTS = { overview: OverviewWidget, priority: PriorityCard, timeline: TodayTimeline, quicklinks: QuickLinksWidget, tasks: TasksWidget, calendar: CalendarWidget, deadlines: DeadlinesWidget, money: MoneyWidget, projects: ProjectsWidget, notes: NotesWidget, focus: FocusWidget, weather: WeatherWidget, activity: ActivityWidget };
+export const WIDGET_COMPONENTS = { splits: SplitsWidget, overview: OverviewWidget, priority: PriorityCard, timeline: TodayTimeline, quicklinks: QuickLinksWidget, tasks: TasksWidget, calendar: CalendarWidget, deadlines: DeadlinesWidget, money: MoneyWidget, projects: ProjectsWidget, notes: NotesWidget, focus: FocusWidget, weather: WeatherWidget, activity: ActivityWidget };

@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { ArrowUp, ArrowDown, Eye, EyeOff, Maximize2, SlidersHorizontal, Check, RotateCcw } from "lucide-react";
 import ViewTabs from "@/components/today/ViewTabs";
+import JarvisBar from "@/components/jarvis/JarvisBar";
 import { WIDGET_COMPONENTS } from "@/components/dashboard/widgets";
 import { WIDGETS, DEFAULT_LAYOUT } from "@/lib/layout";
 import { saveLayout } from "@/actions/settings";
@@ -25,6 +26,7 @@ export default function DashboardClient({ layout: initial, data, ctx, greeting, 
           : <button className="btn" onClick={() => setEdit(true)}><SlidersHorizontal size={15} /> Customize</button>}
       </div>
     </div>
+    <JarvisBar />
     <div className="grid-cards">
       {shown.map((w) => {
         const C = WIDGET_COMPONENTS[w.id]; const i = layout.findIndex((x) => x.id === w.id);

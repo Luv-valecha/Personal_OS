@@ -1,9 +1,8 @@
 "use server";
 import { query, one } from "@/lib/db";
 import { requireUserId } from "@/lib/auth";
-import { crud, safe, fail, logActivity, refresh } from "@/lib/crud";
-import { deadlineSchema } from "@/lib/validation";
-const d = crud("deadlines", deadlineSchema, { kind: "deadline", refs: { project_id: "projects" } });
+import { safe, fail, logActivity, refresh } from "@/lib/crud";
+import { deadlinesSvc as d } from "@/lib/services";
 export async function createDeadline(input) { return safe(() => d.create(input)); }
 export async function updateDeadline(id, input) { return safe(() => d.update(id, input)); }
 export async function deleteDeadline(id) { return safe(() => d.remove(id)); }

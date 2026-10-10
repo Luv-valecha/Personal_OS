@@ -9,6 +9,7 @@ import { X } from "lucide-react";
 // each character: it re-focused the first field (title) and then restored focus to the previously focused
 // element — blurring the textarea and dismissing the on-screen keyboard. `onClose` now lives in a ref and the
 // effect depends on `open` only, so initial focus happens exactly once per opening.
+const stack = []; // open dialogs, topmost last
 export default function Modal({ open, onClose, title, children, wide = false, className = "", hideHead = false }) {
   const ref = useRef(null);
   const closeRef = useRef(onClose);
@@ -16,14 +17,15 @@ export default function Modal({ open, onClose, title, children, wide = false, cl
   useEffect(() => {
     if (!open) return;
     const prev = document.activeElement;
-    const onKey = (e) => { if (e.key === "Escape") closeRef.current?.(); };
+    const token = {}; stack.push(token);
+    const onKey = (e) => { if (e.key === "Escape" && stack[stack.length - 1] === token) closeRef.current?.(); };
     document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
     const t = setTimeout(() => {
       if (ref.current?.contains(document.activeElement)) return; // user already focused a field — don't steal it
       const el = ref.current?.querySelector("[autofocus],input,textarea,select,button"); el?.focus();
     }, 30);
-    return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = ""; clearTimeout(t); prev?.focus?.(); };
+    return () => { stack.splice(stack.indexOf(token), 1); document.removeEventListener("keydown", onKey); document.body.style.overflow = stack.length ? "hidden" : ""; clearTimeout(t); prev?.focus?.(); };
   }, [open]);
   if (!open) return null;
   return (

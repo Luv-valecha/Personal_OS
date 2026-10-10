@@ -3,7 +3,10 @@ import { useEffect, useMemo, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import PageHead from "@/components/ui/PageHead";
 import Modal from "@/components/ui/Modal";
-import TaskRow from "@/components/tasks/TaskRow";
+import SortableTaskList from "@/components/tasks/SortableTaskList";
+import SortSelect from "@/components/tasks/SortSelect";
+import { sortTasks } from "@/lib/tasksort";
+import { setTaskSort } from "@/actions/tasks";
 import { Field, PrioritySelect, ProjectSelect, Segmented, tagsToString } from "@/components/ui/Fields";
 import { Empty, Tags } from "@/components/ui/misc";
 import { useAction } from "@/components/ui/useAction";
@@ -12,9 +15,12 @@ import { addDays } from "@/lib/dates";
 
 const VIEWS = [{ value: "today", label: "Today" }, { value: "upcoming", label: "Upcoming" }, { value: "overdue", label: "Overdue" }, { value: "completed", label: "Completed" }, { value: "projects", label: "Projects" }];
 
-export default function TasksClient({ tasks, projects, today, initialQuery, openId, initialView }) {
+export default function TasksClient({ tasks, projects, today, initialQuery, openId, initialView, taskSort = "manual" }) {
   const { run, pending } = useAction();
+  const { run: runSort, pending: sortPending } = useAction(); const [mode, setMode] = useState(taskSort); useEffect(() => { setMode(taskSort); }, [taskSort]);
+  const changeMode = async (m) => { const prev = mode; setMode(m); const r = await runSort(() => setTaskSort(m)); if (!r) setMode(prev); };
   const [view, setView] = useState(VIEWS.some((v) => v.value === initialView) ? initialView : "today"); const [text, setText] = useState(""); const [q, setQ] = useState(initialQuery); const [edit, setEdit] = useState(null); const [limit, setLimit] = useState(50);
+  const canDrag = mode === "manual" && view !== "completed";
   useEffect(() => { if (openId) { const t = tasks.find((x) => x.id === openId); if (t) setEdit(t); } }, [openId]); // eslint-disable-line
   const counts = useMemo(() => ({
     today: tasks.filter((t) => !t.completed && t.due_date === today).length,
@@ -24,12 +30,12 @@ export default function TasksClient({ tasks, projects, today, initialQuery, open
     let l = tasks;
     if (q) l = l.filter((t) => (t.title + " " + t.notes + " " + (t.tags || []).join(" ")).toLowerCase().includes(q.toLowerCase()));
     if (view === "today") l = l.filter((t) => !t.completed && (t.due_date === today || (t.due_date && t.due_date < today)));
-    if (view === "upcoming") l = l.filter((t) => !t.completed && (!t.due_date || t.due_date > today)).sort((a, b) => (a.due_date || "9999").localeCompare(b.due_date || "9999"));
+    if (view === "upcoming") l = l.filter((t) => !t.completed && (!t.due_date || t.due_date > today)); // order comes from the shared sort mode below
     if (view === "overdue") l = l.filter((t) => !t.completed && t.due_date && t.due_date < today);
     if (view === "completed") l = l.filter((t) => t.completed).sort((a, b) => String(b.completed_at).localeCompare(String(a.completed_at)));
     if (view === "projects") l = l.filter((t) => !t.completed);
-    return l;
-  }, [tasks, view, q, today]);
+    return view === "completed" ? l : sortTasks(l, mode);
+  }, [tasks, view, q, today, mode]);
   const grouped = useMemo(() => { if (view !== "projects") return null; const g = {}; for (const t of list) (g[t.project_name || "No project"] ||= []).push(t); return Object.entries(g); }, [list, view]);
 
   async function add(e) { e.preventDefault(); if (!text.trim()) return; const r = await run(() => quickAddTask(text), { ok: "Task added" }); if (r) setText(""); }
@@ -42,13 +48,15 @@ export default function TasksClient({ tasks, projects, today, initialQuery, open
     </form>
     <div className="flex flex-wrap items-center gap-3 mb-3">
       <Segmented value={view} onChange={(v) => { setView(v); setLimit(50); }} options={VIEWS.map((v) => ({ ...v, label: v.label + (v.value === "today" && counts.today ? ` ${counts.today}` : "") + (v.value === "overdue" && counts.overdue ? ` ${counts.overdue}` : "") }))} label="Task view" />
+      {view !== "completed" && <SortSelect value={mode} onChange={changeMode} pending={sortPending} />}
       <input className="input" style={{ maxWidth: 220 }} placeholder="Filter…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Filter tasks" />
     </div>
     <div className="card" style={{ padding: 8 }}>
       {list.length === 0 ? <Empty title={view === "completed" ? "Nothing completed yet" : view === "overdue" ? "No overdue tasks" : "All clear"} hint={q ? "No tasks match your filter." : "Add a task above to get started."} /> :
-        grouped ? grouped.map(([name, items]) => <div key={name} className="mb-2"><div className="card-title" style={{ padding: "8px 4px 0", marginBottom: 4 }}>{name}<span>{items.length}</span></div>{items.map(row)}</div>) :
-          <>{list.slice(0, limit).map(row)}{list.length > limit && <div className="text-center py-2"><button className="btn btn-sm" onClick={() => setLimit((n) => n + 50)}>Show more ({list.length - limit})</button></div>}</>}
+        grouped ? grouped.map(([name, items]) => <div key={name} className="mb-2"><div className="card-title" style={{ padding: "8px 4px 0", marginBottom: 4 }}>{name}<span>{items.length}</span></div><SortableTaskList tasks={items} today={today} onOpen={setEdit} canDrag={canDrag} /></div>) :
+          <><SortableTaskList tasks={list.slice(0, limit)} today={today} onOpen={setEdit} canDrag={canDrag} />{list.length > limit && <div className="text-center py-2"><button className="btn btn-sm" onClick={() => setLimit((n) => n + 50)}>Show more ({list.length - limit})</button></div>}</>}
     </div>
+    {mode !== "manual" && view !== "completed" && list.length > 1 && <p className="small muted mt-2">Sorted automatically by {mode === "due" ? "due date" : mode === "created" ? "creation date" : mode}. Choose <button className="btn btn-ghost btn-sm" onClick={() => changeMode("manual")}>Manual</button> to drag tasks — your saved manual order is kept and restored.</p>}
     {edit && <TaskEditor key={edit.id} task={tasks.find((t) => t.id === edit.id) || edit} projects={projects} onClose={() => setEdit(null)} today={today} />}
   </>);
 }
@@ -79,6 +87,7 @@ function TaskEditor({ task, projects, onClose, today }) {
           <div className="flex gap-2 mt-2"><input className="input" value={sub} onChange={(e) => setSub(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (sub.trim()) run(() => addSubtask(task.id, sub)).then((r) => r && setSub("")); } }} placeholder="Add a subtask" aria-label="New subtask" />
             <button type="button" className="btn" onClick={() => sub.trim() && run(() => addSubtask(task.id, sub)).then((r) => r && setSub(""))}>Add</button></div>
         </div>
+        {task.source_idea_title && <p className="small muted" style={{ margin: 0 }}>Created from idea: <a href={`/ideas?open=${task.source_idea_id}`} style={{ color: "var(--color-primary)" }}>{task.source_idea_title}</a></p>}
         {task.tags?.length > 0 && <Tags tags={task.tags} />}
         <div className="flex justify-between gap-2 pt-1"><button type="button" className="btn btn-danger" onClick={del}><Trash2 size={15} /> Delete</button>
           <div className="flex gap-2"><button type="button" className="btn" onClick={onClose}>Close</button><button className="btn btn-primary" disabled={pending}>Save</button></div></div>

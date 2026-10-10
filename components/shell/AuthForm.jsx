@@ -2,6 +2,7 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import { loginAction, registerAction } from "@/actions/auth";
+import Logo from "@/components/ui/Logo";
 
 export default function AuthForm({ mode, registrationOpen = true }) {
   const reg = mode === "register";
@@ -9,7 +10,7 @@ export default function AuthForm({ mode, registrationOpen = true }) {
   return (
     <main style={{ position: "relative", zIndex: 1, minHeight: "100dvh", display: "grid", placeItems: "center", padding: 20 }}>
       <div style={{ width: "min(100%, 400px)" }}>
-        <div className="flex items-center gap-3 mb-6"><span className="brand-mark" style={{ width: 36, height: 36, fontSize: 16 }}>L</span>
+        <div className="flex items-center gap-3 mb-6"><Logo size={44} />
           <div><h1 style={{ fontSize: 22 }}>{reg ? "Create your dashboard" : "Welcome back, Lucifer"}</h1><p className="sub">{reg ? "Your private personal operating system." : "Sign in to continue."}</p></div></div>
         <form action={action} className="card flex flex-col gap-3" style={{ padding: 20 }}>
           {state?.error && <div className="error-box" role="alert">{state.error}</div>}

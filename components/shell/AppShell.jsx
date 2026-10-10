@@ -9,6 +9,9 @@ import { FocusProvider, useFocus, fmtClock } from "@/components/shell/FocusProvi
 import QuickAdd from "@/components/shell/QuickAdd";
 import CommandPalette from "@/components/shell/CommandPalette";
 import Modal from "@/components/ui/Modal";
+import Logo from "@/components/ui/Logo";
+import MusicProvider from "@/components/music/MusicProvider";
+import MiniPlayer from "@/components/music/MiniPlayer";
 import { setTheme } from "@/actions/settings";
 import SlideshowProvider, { useThemeFx } from "@/components/shell/SlideshowProvider";
 
@@ -48,7 +51,7 @@ function Shell({ user, currency, projects, children }) {
   return (
     <div className="app">
       <aside className="sidebar" aria-label="Primary">
-        <Link href="/dashboard" className="brand"><span className="brand-mark">L</span><span>{user.display_name}&apos;s OS</span></Link>
+        <Link href="/dashboard" className="brand"><Logo size={30} /><span>{user.display_name}&apos;s OS</span></Link>
         <nav className="flex flex-col gap-0.5">
           {NAV.map((n) => <Link key={n.href} href={n.href} className="nav-link" aria-current={active(n.href) ? "page" : undefined}><n.icon size={17} />{n.label}</Link>)}
         </nav>
@@ -57,7 +60,7 @@ function Shell({ user, currency, projects, children }) {
 
       <div className="main">
         <header className="topbar">
-          <Link href="/dashboard" className="brand md:hidden" style={{ padding: 0 }}><span className="brand-mark">L</span></Link>
+          <Link href="/dashboard" className="brand md:hidden" style={{ padding: 0 }}><Logo size={30} /></Link>
           <div className="grow" />
           {focus?.t && <Link href="/focus" className="chip chip-active" style={{ minHeight: 30 }} aria-label="Focus timer running"><Timer size={13} /> {fmtClock(focus.remaining)}</Link>}
           <button className="btn btn-ghost btn-icon md:hidden" onClick={() => setPalette(true)} aria-label="Search and commands"><Search size={18} /></button>
@@ -80,6 +83,7 @@ function Shell({ user, currency, projects, children }) {
         <main className="content" id="main">{children}</main>
       </div>
 
+      <MiniPlayer />
       <nav className="bottom-nav" aria-label="Primary mobile">
         {first.slice(0, 2).map((n) => <Link key={n.href} href={n.href} className="bn-item" aria-current={active(n.href) ? "page" : undefined}><n.icon size={20} />{n.label}</Link>)}
         <button className="bn-fab" onClick={() => openAdd("task")} aria-label="Quick add"><Plus size={22} /></button>
@@ -99,5 +103,5 @@ function Shell({ user, currency, projects, children }) {
 }
 
 export default function AppShell(props) {
-  return <ToastProvider><SlideshowProvider initial={props.slideshow}><FocusProvider><Shell {...props} /></FocusProvider></SlideshowProvider></ToastProvider>;
+  return <ToastProvider><SlideshowProvider initial={props.slideshow}><FocusProvider><MusicProvider><Shell {...props} /></MusicProvider></FocusProvider></SlideshowProvider></ToastProvider>;
 }

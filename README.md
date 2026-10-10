@@ -1,8 +1,89 @@
-# Lucifer's OS — V2.0
+# Lucifer's OS — V3.1.21
 
 A minimal, fast, installable (PWA) personal operating system: tasks, calendar, deadlines, notes, bookmarks, projects, ideas, focus timer, expenses, files, developer projects, activity feed, global search, command palette, a customizable dashboard and **18 built-in themes + a custom theme builder**.
 
 **JavaScript only (no TypeScript)** · Next.js 16 App Router · PostgreSQL · Tailwind CSS 4 + CSS variables · deployable on free tiers.
+
+## What's new in V3.x (current: **3.1.21**)
+V3 extends V2 — every V2/V1 module, the theme system, auth, PWA and project relationships are unchanged.
+
+### 1. JARVIS — AI assistant on the dashboard
+A compact input at the very top of the dashboard; the response panel exists only while there is a response (dismiss with ✕). Cards show the *real* result of each action with deep links.
+* **How it works:** `POST /api/jarvis` (authenticated) → `lib/jarvis/orchestrator.js` → (1) a **deterministic rules path** for explicit commands (`add task: …`, `add idea: …`, `start 45 minute focus`, `Rahul owes me 300 for lunch`, `overdue`, `how much have I spent this month`…) — instant, no AI quota used, works with the AI down → (2) **Gemini function calling** for everything else. The model can only call tools from an explicit allow-list (`lib/jarvis/tools.js`); each tool has a strict Zod schema, uses the *session* user (never an id from the model/browser), goes through the same ownership-checked services as the UI (`lib/services.js`), and returns real data.
+* **Tools:** tasks (create/list/update/complete/delete/bulk-complete-overdue), ideas (create/list/convert-to-task/delete), expenses (create/list/summary and **`get_expense_stats` — any metric**), splits (add entry/list balances/settle), deadlines, events, projects (list/overview/create), notes, bookmarks, search, focus (start/summary), priorities.
+* **No invented numbers:** totals, counts, averages, dates and balances are computed in SQL/JS (`lib/analytics.js`, `lib/splits.js`); the model only phrases results. If a write tool fails, the UI shows the failure — never a model-claimed success.
+* **Confirmation policy:** clear low-risk actions run immediately. Ambiguity (several projects match, missing amount/date, non-₹ currency) → one clarifying question; the next message completes the original request (short, bounded in-memory conversation: ≤ 8 messages, nothing stored server-side). **Deletes and bulk changes** return a preview + HMAC-signed, 5-minute, user-bound token; they only execute after you press Confirm.
+* **Free-tier resilience:** ≤ 600-character input, 15 requests/min and 300/day per user (in-memory), 20 s timeout, bounded history, minimal rows sent to Gemini (never the whole database), same `requestId` ⇒ executed once (double-submit safe), quota/key/model/timeout/malformed-response errors are mapped to clear messages. JARVIS is optional: without a key the rest of the app is unaffected and the rule-based commands still work.
+* **Ask for any expense metric**, e.g. “average coffee spend last 30 days”, “how much on weekends this month”, “compare this month to last month”, “my highest expense this year”, “daily average in September”. The model picks a date range/filters; the numbers come from `get_expense_stats` (total, count, avg/day, avg/expense, avg per active day, median, min/max, by category, by weekday, weekend-vs-weekday, 12-month trend, top expenses/items, change vs previous period, month-end forecast).
+
+### 2. Task ordering (manual drag-and-drop + auto sort)
+* Drag the ⋮⋮ handle (mouse, touch — press-and-hold briefly — or keyboard: Space, ↑/↓, Space) in the **Tasks page, dashboard widget and Today view** — they share one ordering. Persisted as `tasks.manual_position` (fractional key): a drag writes **one row**; priority/due date/status are never touched. New tasks appear at the top.
+* **Sort** menu: Manual · Priority · Due date · Newest first · A–Z (stored in `dashboard_settings.task_sort`, shared everywhere). Auto sorts are display-only: your manual order is preserved and restored when you switch back; dragging is disabled outside Manual mode so the order can never become ambiguous.
+* Concurrency: moves are serialised client-side, optimistic with rollback; the server verifies neighbours still exist/are in order and otherwise refuses (“The list changed — try again”) and the list refreshes. Positions are renumbered only when the gap gets too small.
+
+### 3. Project ideas
+* `ideas.project_id` (nullable; deleting a project keeps its ideas) and `tasks.source_idea_id` (nullable; deleting an idea keeps its tasks). One canonical record: edit it from **Ideas** or from the **project's Ideas section** (project dialog → add / open / edit).
+* Ideas page: project filter (All · No project · Converted to tasks · each project) and a project picker when adding. **Create linked task** on any idea: prefilled title/notes, optional priority/due date (nothing invented), project carried over; the idea is kept and lists its linked tasks (multiple allowed). The task editor shows “Created from idea”.
+
+### 4. Lucifer Music (local files only)
+* Add files/folder from **this device**; audio never leaves the browser. The server (Neon) stores only metadata: title, artist, album, duration, file name/size, a `name|size` fingerprint, favourites and playlists (`music_tracks`, `music_playlists`, `music_playlist_tracks`). No audio column exists.
+* One `<audio>` element lives in the app shell, so playback continues across navigation; compact **mini-player** (play/pause, prev/next, seek, queue) sits above the mobile nav. Library / Playlists (create, rename, delete, add, remove, reorder) / Favorites / Queue (reorder, remove, shuffle, repeat off/all/one, volume). Media Session API for lock-screen controls where supported.
+* Tags are read locally (ID3v2 title/artist/album) with file-name fallbacks. **Unavailable files** show “not on this device” with *Locate* / *Re-link files*; entries are never silently removed. Chrome/Edge desktop remember file handles (re-open after restart; the browser may re-ask permission); Android/iOS/Firefox keep files only for the open tab and need re-linking next time. A playlist synced to another device needs that device to add the same files (matching by name + size).
+* Browser limits: autoplay needs a tap; background playback depends on the OS/browser and is not guaranteed; unsupported/corrupt files show an error.
+
+### 5. Expense analytics (Expenses page)
+Presets (today, week, 7/30/90 days, this/last month, this year, all time) **and custom from/to**, category filter, “description contains” filter, URL-shareable. KPIs: total (± vs previous equal period), average per day / per expense / per spending day, median, highest/lowest, weekend vs weekday, no-spend days, month-end forecast. Charts (theme-aware SVG): daily bars, cumulative line, category donut, weekday pattern, 12-month trend; top expenses and most-spent-on items. Same engine as JARVIS (`lib/analytics.js`).
+
+### 6. Split tracker (Splits)
+Friends are **plain names** (nothing connected). A ledger per friend: *I paid/lent (they owe me)*, *They paid/lent (I owe them)*, *They paid me back*, *I paid them back* — each with date and **reason**. Balances = signed sum; **Settle up** records the payment that zeroes a friend; **Split equally** (you + selected friends, payer = you or a friend, optional “record my share as an expense”). Dashboard **Splits** widget, search integration, and JARVIS (“Rahul owes me 300 for lunch”, “who owes me?”, “settle up with Aman”).
+
+### 7. Branding & version
+New original **dark-fire flame logo** (`scripts/logo.js` → PNG/SVG icons via `npm run icons`, in-app `<Logo/>`, favicon, maskable and Apple icons). App/PWA version **3.1.21**: `package.json`, `manifest` (`version`), service-worker cache name (so installed copies update), Settings → About.
+
+## Setup for V3
+
+### Gemini (JARVIS) — optional
+1. Create a free key at https://aistudio.google.com/apikey.
+2. Local: put `GEMINI_API_KEY=…` (and optionally `GEMINI_MODEL=…`) in `.env.local`, restart. Production (Vercel): Project → Settings → Environment Variables → add both, redeploy. Never prefix with `NEXT_PUBLIC_`; the key stays server-side and is never logged or returned.
+3. Model: `GEMINI_MODEL` (default `gemini-2.5-flash`). Model names and free quotas change — check https://ai.google.dev/gemini-api/docs/models and the rate-limit page, then set the id you want. “Model isn't available” errors tell you to change it.
+4. Free tier: requests-per-minute/day and token quotas apply and can change; when exhausted JARVIS says so and the rule-based commands keep working. On the free tier Google may use prompts to improve its products — JARVIS therefore sends only your message, a short history and the few rows a tool returns.
+5. Test: ask “what should I work on today?” (rule path, no key needed) and “how much did I spend on coffee in the last 30 days?” (needs the AI). Offline end-to-end test without a key: `npm run mock:gemini` + `GEMINI_API_BASE=http://localhost:4010 GEMINI_API_KEY=test npm run start`.
+6. Replace the provider: implement `generate({system, contents, tools})` in `lib/jarvis/provider.js`.
+
+### Neon PostgreSQL (database stays the same)
+* No new database. Keep your existing `DATABASE_URL` (Neon: use the **pooled** connection string — host contains `-pooler` — with `sslmode=require`; the app already enables SSL for non-local hosts).
+* **Free tier (checked Oct 2026 — re-verify):** Neon Free = 100 CU-hours and 0.5 GB per project per month, autoscaling to 2 CU, compute **scales to zero after ~5 min idle** (first query after idle takes a moment), no card needed; if a monthly limit is hit, compute is suspended until next month. All V3 metadata is tiny; note that the Files module stores uploads *inside* Postgres (counts toward 0.5 GB) — music files are never stored.
+* **Migrate** (additive, idempotent, tracked in `_migrations`): `npm run db:migrate` → applies `003_v3.sql` (task ordering, idea↔project, idea→task link, music tables) and `004_splits.sql` (friends, split_entries). Production: run the same command locally with your production `DATABASE_URL` (or via a one-off shell) *before* the new code serves traffic, then verify with `npm run db:check`.
+* **Back up first** (recommended): Neon console → Branches → create a branch from main (instant copy-on-write snapshot), or `pg_dump "$DATABASE_URL" > backup.sql`.
+* **Preserved:** nothing is dropped or rewritten. Existing tasks get `manual_position` backfilled so the initial manual order equals your V2 Tasks-page order. Verified on a V2 database: row counts, task ids and user accounts identical after migrating.
+* **Rollback considerations:** the code can run on the migrated schema; to roll back the *app*, redeploy V2 (extra columns/tables are ignored). To remove the new structures, restore the Neon branch/backup — we deliberately ship no destructive down-migration.
+
+### Environment variables (new in V3)
+| Variable | Required | Purpose |
+|---|---|---|
+| `GEMINI_API_KEY` | no | Enables JARVIS AI (server-only). |
+| `GEMINI_MODEL` | no | Model id (default `gemini-2.5-flash`). |
+| `GEMINI_API_BASE` | no | Testing/proxy override of the API URL. |
+| `GEMINI_TIMEOUT_MS` | no | Request timeout (default 20000). |
+All V2 variables are unchanged (`DATABASE_URL`, `AUTH_SECRET`, `NEXT_PUBLIC_APP_URL`, `ALLOW_REGISTRATION`, `MAX_UPLOAD_MB`).
+
+### Deploy (existing Vercel + Neon)
+`npm install` → set env vars (add the Gemini ones if you want JARVIS) → `npm run db:migrate` against production → push to GitHub (Vercel builds with `npm run build`) → verify: sign in, `/manifest.webmanifest` shows version 3.1.21, Settings → About, dashboard JARVIS bar, Expenses analytics, Splits, Music (add a file), drag a task. Installed PWAs pick up the new service worker (cache `static-3.1.21`) on next open.
+
+## Testing
+* `npm test` — unit tests (`tests/unit`, Node's test runner): sorting/ordering, priority scoring, command parsing, JARVIS deterministic intents, layout migration, music helpers.
+* `tests/mock-gemini.mjs` — scripted Gemini stand-in to exercise JARVIS offline.
+* `tests/e2e/*.py` — the Playwright (Python) scripts used for browser verification (dev-only helpers, not part of the app; they expect the seed user and a local Postgres).
+* What was verified for 3.1.21 (local Postgres, production build, headless Chromium incl. touch emulation): V2→V3 migration preserving data; drag reorder (one row written, fields untouched, persistence, auto-sort + restore, dashboard↔Tasks consistency, keyboard, stale/crossed neighbours, mobile); project ideas end-to-end incl. deletion semantics and isolation; JARVIS rule path, tool path, clarification + follow-up, confirmation (incl. tampered/other-user tokens), unknown-tool/invalid-argument/cross-user attempts, duplicate requestId, rate limit, provider failures (quota, bad model, malformed, timeout) — **using the mock Gemini**; expense analytics numbers vs SQL; splits ledger/settle/equal split/isolation; Music with real WAV files (play/pause/seek/volume/next/prev/shuffle/repeat/auto-advance, playlists, favourites, navigation persistence, reload → unavailable → re-link, corrupt file, no audio bytes sent to the server, no bytea column, mobile layout); PWA assets/version; V2 regression suites.
+* **Not verified here:** the real Gemini API (no key/network in the sandbox — behaviour with real model output may differ; use the test steps above), real phone keyboards/devices, PWA install/standalone and background audio on real Android/iOS, Safari/Firefox, File System Access permission prompts (Chromium desktop), actual Vercel/Neon deployment.
+
+## Known limitations (V3)
+* Gemini free-tier quotas and model names change; real-model tool-calling quality isn't guaranteed. Rate limits are in-memory per server instance.
+* Music: files are not synced between devices; persistent file access exists only in Chromium desktop; background playback is browser-dependent; ID3 artwork is not read.
+* Splits: friends are names only (no accounts, no multi-currency, equal splits only); expenses are single-currency (₹).
+* An intermittent, harmless React hydration warning (#418, text mismatch) has occasionally appeared in the browser console on the Settings page in production builds; it could not be reproduced in dev mode or on fresh loads, React recovers automatically, and no visible difference was found.
+* Recurring tasks complete into the next occurrence; recurring calendar events aren't editable per occurrence (unchanged from V2).
+
 
 ## What's new in V2.0
 V2 is an evolution of V1 — every V1 module, the theme system, auth, PWA and the project ↔ tasks/notes/deadlines/files relationships are unchanged.
@@ -92,7 +173,10 @@ Seed login: **lucifer@example.com / lucifer123** (override with `SEED_EMAIL`, `S
 Production check locally: `npm run build && npm run start`.
 Other commands: `npm run db:reset` (⚠ wipes the database, dev only), `npm run icons` (regenerate PNG icons).
 
-## Database setup from zero (Supabase)
+## Database setup from zero (Neon or Supabase — any PostgreSQL works)
+**Neon (recommended for V3):** create a project at neon.com → copy the *pooled* connection string → `DATABASE_URL` in `.env.local` → `npm run db:migrate`.
+
+### Supabase variant
 1. Create an account at supabase.com → **New project** → choose a region near you and set a **database password** (save it).
 2. When ready, click **Connect** → copy the **Transaction pooler** connection string (port **6543**). Replace `[YOUR-PASSWORD]`. (For local migrations from home networks lacking IPv6, the pooler string is also the safest choice.)
 3. Put it in `.env.local` as `DATABASE_URL=...`.

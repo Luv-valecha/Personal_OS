@@ -1,13 +1,14 @@
 "use server";
 import { query, one } from "@/lib/db";
 import { requireUserId } from "@/lib/auth";
-import { crud, safe, fail, logActivity, refresh } from "@/lib/crud";
-import { taskSchema } from "@/lib/validation";
+import { safe, fail, logActivity, refresh } from "@/lib/crud";
+import { tasksSvc } from "@/lib/services";
 import { parseQuickTask } from "@/lib/nlp";
+import { isSortMode } from "@/lib/tasksort";
 import { addDays, todayStr } from "@/lib/dates";
 import { getTz } from "@/lib/server-utils";
 
-const tasks = crud("tasks", taskSchema, { kind: "task", refs: { project_id: "projects" }, touch: true });
+const tasks = tasksSvc;
 
 export async function createTask(input) { return safe(() => tasks.create(input)); }
 export async function updateTask(id, input) { return safe(() => tasks.update(id, input)); }
@@ -69,4 +70,37 @@ export async function toggleSubtask(id) {
 }
 export async function deleteSubtask(id) {
   return safe(async () => { const uid = await requireUserId(); await query("DELETE FROM subtasks WHERE id=$1 AND user_id=$2", [id, uid]); refresh(); return true; });
+}
+
+// ── Manual ordering ──────────────────────────────────────────────────────────
+// Moves ONE task between its new neighbours (prevId above, nextId below). Only that row is written; priority, due date
+// and every other field stay untouched. If the neighbours changed under us (stale list) we refuse instead of guessing.
+export async function moveTask(activeId, prevId, nextId) {
+  return safe(async () => {
+    const uid = await requireUserId();
+    const ids = [activeId, prevId, nextId].filter(Boolean);
+    if (new Set(ids).size !== ids.length) throw fail("Invalid move");
+    const fetchPos = async () => Object.fromEntries((await query("SELECT id, manual_position FROM tasks WHERE user_id=$1 AND id = ANY($2::uuid[])", [uid, ids])).map((r) => [r.id, r.manual_position]));
+    let m = await fetchPos();
+    if (m[activeId] === undefined || (prevId && m[prevId] === undefined) || (nextId && m[nextId] === undefined)) throw fail("The list changed. Refreshing — try again.");
+    let rebalanced = false;
+    if (prevId && nextId && (m[nextId] - m[prevId] < 0.001)) { // neighbours crossed (stale) or gap exhausted → renumber this user's tasks, then re-read
+      await query("UPDATE tasks t SET manual_position = r.rn * 1024.0 FROM (SELECT id, row_number() OVER (ORDER BY manual_position, created_at) AS rn FROM tasks WHERE user_id=$1) r WHERE r.id=t.id AND t.user_id=$1", [uid]);
+      m = await fetchPos(); rebalanced = true;
+      if (m[nextId] <= m[prevId]) throw fail("The list changed. Refreshing — try again.");
+    }
+    const p = prevId ? m[prevId] : null, n = nextId ? m[nextId] : null;
+    const next = p !== null && n !== null ? (p + n) / 2 : p !== null ? p + 1024 : n !== null ? n - 1024 : m[activeId];
+    await query("UPDATE tasks SET manual_position=$3 WHERE id=$1 AND user_id=$2", [activeId, uid, next]);
+    refresh(); return { position: next, rebalanced };
+  });
+}
+
+// Display sort preference (shared by dashboard + Tasks page). Switching never touches manual_position.
+export async function setTaskSort(mode) {
+  return safe(async () => {
+    const uid = await requireUserId(); if (!isSortMode(mode)) throw fail("Unknown sort mode");
+    await query("UPDATE dashboard_settings SET task_sort=$2, updated_at=now() WHERE user_id=$1", [uid, mode]);
+    refresh(); return mode;
+  });
 }

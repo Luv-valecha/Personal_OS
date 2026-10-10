@@ -12,5 +12,5 @@ export default async function DashboardPage() {
   const greeting = `${hour < 5 ? "Still up" : hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening"}, ${user.display_name}`;
   const dateLabel = new Intl.DateTimeFormat("en-IN", { weekday: "long", month: "long", day: "numeric", timeZone: tz }).format(new Date());
   return <DashboardClient layout={settings.layout} data={data} greeting={greeting} dateLabel={dateLabel}
-    ctx={{ today, tz, currency: settings.currency, budget: Number(settings.monthly_budget) || 0, city: settings.weather_city }} />;
+    ctx={{ today, tz, currency: settings.currency, budget: Number(settings.monthly_budget) || 0, city: settings.weather_city, taskSort: settings.task_sort }} />;
 }

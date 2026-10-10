@@ -1,8 +1,6 @@
 "use server";
-import { crud, safe } from "@/lib/crud";
-import { projectSchema, devProjectSchema } from "@/lib/validation";
-const projects = crud("projects", projectSchema, { kind: "project", labelKey: "name", json: ["links"], touch: true });
-const dev = crud("dev_projects", devProjectSchema, { kind: "developer", labelKey: "name", json: ["todos"] });
+import { safe } from "@/lib/crud";
+import { projectsSvc as projects, devProjectsSvc as dev } from "@/lib/services";
 export async function createProject(input) { return safe(() => projects.create(input)); }
 export async function updateProject(id, input) { return safe(() => projects.update(id, input)); }
 export async function deleteProject(id) { return safe(() => projects.remove(id)); }

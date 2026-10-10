@@ -6,15 +6,15 @@ import { getSettings, getCustomTheme } from "@/lib/server-utils";
 import { customThemeStyle, isThemeId, MOTION } from "@/lib/themes";
 
 export const metadata = {
-  title: { default: "Personal Dashboard", template: "%s · Dashboard" },
+  title: { default: "Lucifer's OS", template: "%s · Lucifer's OS" },
   description: "A minimal personal operating system for tasks, notes, projects, money and focus.",
-  applicationName: "Personal Dashboard",
+  applicationName: "Lucifer's OS",
   manifest: "/manifest.webmanifest",
-  appleWebApp: { capable: true, title: "Dashboard", statusBarStyle: "black-translucent" },
-  icons: { icon: [{ url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }, { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" }], apple: "/icons/apple-touch-icon.png" },
+  appleWebApp: { capable: true, title: "Lucifer OS", statusBarStyle: "black-translucent" },
+  icons: { icon: [{ url: "/icons/icon.svg", type: "image/svg+xml" }, { url: "/icons/favicon-32.png", sizes: "32x32", type: "image/png" }, { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }, { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" }], apple: "/icons/apple-touch-icon.png" },
   formatDetection: { telephone: false },
 };
-export const viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#0f1115", colorScheme: "dark light" };
+export const viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#0a0305", colorScheme: "dark light" };
 
 export default async function RootLayout({ children }) {
   const jar = await cookies();

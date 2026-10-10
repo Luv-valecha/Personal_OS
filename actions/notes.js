@@ -1,9 +1,8 @@
 "use server";
 import { query } from "@/lib/db";
 import { requireUserId } from "@/lib/auth";
-import { crud, safe, refresh } from "@/lib/crud";
-import { noteSchema } from "@/lib/validation";
-const notes = crud("notes", noteSchema, { kind: "note", refs: { project_id: "projects" }, touch: true });
+import { safe, refresh } from "@/lib/crud";
+import { notesSvc as notes } from "@/lib/services";
 export async function createNote(input) { return safe(() => notes.create({ title: "", body: "", ...input })); }
 export async function updateNote(id, input) { return safe(() => notes.update(id, input)); }
 export async function deleteNote(id) { return safe(() => notes.remove(id)); }

@@ -1,10 +1,10 @@
 "use server";
 import { query } from "@/lib/db";
 import { requireUserId } from "@/lib/auth";
-import { crud, safe, fail, refresh } from "@/lib/crud";
-import { bookmarkSchema } from "@/lib/validation";
+import { safe, fail, refresh } from "@/lib/crud";
+import { bookmarksSvc } from "@/lib/services";
 import { fetchMetadata, normalizeUrl } from "@/lib/metadata";
-const bm = crud("bookmarks", bookmarkSchema.extend({ domain: bookmarkSchema.shape.title }), { kind: "bookmark" });
+const bm = bookmarksSvc;
 
 export async function createBookmark(input) {
   return safe(async () => {

@@ -21,5 +21,5 @@ export default async function TodayPage() {
   const greeting = `${hour < 5 ? "Still up" : hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening"}, ${user.display_name}`;
   const dateLabel = new Intl.DateTimeFormat("en-IN", { weekday: "long", month: "long", day: "numeric", timeZone: tz }).format(new Date());
   return <TodayView data={data} greeting={greeting} dateLabel={dateLabel} notifications={notifications} projectWork={projectWork}
-    ctx={{ today, tz, nextWeek: addDays(today, 7), currency: settings.currency, budget: Number(settings.monthly_budget) || 0, city: settings.weather_city }} />;
+    ctx={{ today, tz, nextWeek: addDays(today, 7), currency: settings.currency, budget: Number(settings.monthly_budget) || 0, city: settings.weather_city, taskSort: settings.task_sort }} />;
 }

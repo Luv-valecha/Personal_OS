@@ -8,6 +8,8 @@ import { Empty, Progress } from "@/components/ui/misc";
 import { useAction } from "@/components/ui/useAction";
 import { createProject, updateProject, deleteProject } from "@/actions/projects";
 import { createTask, toggleTask } from "@/actions/tasks";
+import { createIdea } from "@/actions/ideas";
+import IdeaEditor from "@/components/ideas/IdeaEditor";
 import { STATUS_LABEL } from "@/lib/format";
 import { fmtDate, relDay } from "@/lib/dates";
 
@@ -26,12 +28,13 @@ export default function ProjectsClient({ projects, today, initialQuery }) {
           <p className="sub trunc" style={{ margin: "2px 0 12px" }}>{p.description || "No description"}</p>
           <Progress value={pct} label={`${p.name} progress`} />
           <div className="flex justify-between small muted mt-2"><span>{p.done} / {p.total} tasks · {pct}%</span>{p.deadline && <span>{relDay(p.deadline, today)}</span>}</div></button>); })}</div>}
-    {open && <ProjectEditor key={open.id || "new"} p={open} today={today} onClose={() => setOpen(null)} />}
+    {open && <ProjectEditor key={open.id || "new"} p={projects.find((x) => x.id === open.id) || open} allProjects={projects.map(({ id, name }) => ({ id, name }))} today={today} onClose={() => setOpen(null)} />}
   </>);
 }
 
-function ProjectEditor({ p, today, onClose }) {
-  const { run, pending } = useAction(); const isNew = !p.id; const [newTask, setNewTask] = useState("");
+function ProjectEditor({ p, allProjects = [], today, onClose }) {
+  const { run, pending } = useAction(); const isNew = !p.id; const [newTask, setNewTask] = useState(""); const [newIdea, setNewIdea] = useState(""); const [ideaOpen, setIdeaOpen] = useState(null);
+  async function addIdea() { if (!newIdea.trim()) return; const r = await run(() => createIdea({ title: newIdea, project_id: p.id }), { ok: "Idea added to project" }); if (r) setNewIdea(""); }
   const [f, setF] = useState({ name: p.name || "", description: p.description || "", status: p.status || "planned", priority: p.priority || "medium", start_date: p.start_date || "", deadline: p.deadline || "" });
   const [links, setLinks] = useState(p.links || []); const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }));
   async function save(e) { e.preventDefault(); const body = { ...f, start_date: f.start_date || null, deadline: f.deadline || null, links: links.filter((l) => l.url.trim()) };
@@ -58,8 +61,12 @@ function ProjectEditor({ p, today, onClose }) {
         <div><span className="label">Tasks</span>
           {p.tasks?.map((t) => <div key={t.id} className="list-row"><input type="checkbox" className="check" defaultChecked={t.completed} onChange={() => run(() => toggleTask(t.id))} aria-label={t.title} /><span className="grow">{t.title}</span></div>)}
           <div className="flex gap-2 mt-2"><input className="input" value={newTask} onChange={(e) => setNewTask(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTask(); } }} placeholder="Add a task to this project" aria-label="New project task" /><button type="button" className="btn" onClick={addTask}>Add</button></div></div>
+        <div><span className="label">Ideas ({p.ideas?.length || 0})</span>
+          {p.ideas?.map((i) => <button type="button" key={i.id} className="list-row w-full text-left" style={{ background: "none", border: 0, color: "inherit", font: "inherit", cursor: "pointer" }} onClick={() => setIdeaOpen(i)}><span className="grow trunc">{i.title}</span>{i.tasks?.length > 0 && <span className="chip">{i.tasks.length} task{i.tasks.length > 1 ? "s" : ""}</span>}<span className="chip">{i.status}</span></button>)}
+          <div className="flex gap-2 mt-2"><input className="input" value={newIdea} onChange={(e) => setNewIdea(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addIdea(); } }} placeholder="Add an idea to this project" aria-label="New project idea" /><button type="button" className="btn" onClick={addIdea}>Add idea</button></div></div>
         {(p.notes?.length > 0 || p.files?.length > 0) && <div className="small muted">{p.notes?.length > 0 && <div>Notes: {p.notes.map((n) => n.title || "Untitled").join(", ")}</div>}{p.files?.length > 0 && <div>Files: {p.files.map((x) => x.name).join(", ")}</div>}</div>}
         {p.links?.filter((l) => /^https?:\/\//i.test(l.url)).length > 0 && <div className="flex flex-wrap gap-2">{p.links.filter((l) => /^https?:\/\//i.test(l.url)).map((l, i) => <a key={i} className="chip" href={l.url} target="_blank" rel="noopener noreferrer"><ExternalLink size={11} />{l.title || l.url}</a>)}</div>}</>}
       <div className="flex justify-between">{!isNew ? <button type="button" className="btn btn-danger" onClick={del}><Trash2 size={15} /> Delete</button> : <span />}<div className="flex gap-2"><button type="button" className="btn" onClick={onClose}>Close</button><button className="btn btn-primary" disabled={pending}>Save</button></div></div>
-    </form></Modal>);
+    </form>
+    {ideaOpen && <IdeaEditor key={ideaOpen.id} idea={p.ideas.find((x) => x.id === ideaOpen.id) || ideaOpen} projects={allProjects} onClose={() => setIdeaOpen(null)} />}</Modal>);
 }

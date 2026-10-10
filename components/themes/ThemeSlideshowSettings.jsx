@@ -13,8 +13,8 @@ const fmtLeft = (ms) => { const m = Math.max(0, Math.round(ms / 60000)); if (m <
 export default function ThemeSlideshowSettings({ customThemes }) {
   const fx = useThemeFx(); const s = fx.state; const { run, pending } = useAction();
   const [sel, setSel] = useState(new Set(s.themes)); const [mins, setMins] = useState(s.intervalMin || 30); const [custom, setCustom] = useState(!PRESETS.some(([m]) => m === (s.intervalMin || 30)));
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => { const i = setInterval(() => setNow(Date.now()), 15000); return () => clearInterval(i); }, []);
+  const [now, setNow] = useState(0); // set after mount (avoids server/client time differences during hydration)
+  useEffect(() => { setNow(Date.now()); const i = setInterval(() => setNow(Date.now()), 15000); return () => clearInterval(i); }, []);
   const list = useMemo(() => [...sel], [sel]);
   const dirty = s.enabled && (JSON.stringify([...sel].sort()) !== JSON.stringify([...(s.themes || [])].sort()) || mins !== s.intervalMin);
   const toggle = (id) => setSel((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -22,7 +22,7 @@ export default function ThemeSlideshowSettings({ customThemes }) {
   async function save(enabled) { const r = await run(() => saveSlideshow({ enabled, themes: list, interval_min: cleanMins }), { ok: enabled ? (s.enabled ? "Slideshow updated" : "Theme slideshow on") : "Theme slideshow off" }); if (r) fx.update({ ...r, themes: list, intervalMin: cleanMins }, { animate: false }); }
   async function ctl(a, msg) { const r = await run(() => slideshowControl(a), msg ? { ok: msg } : undefined); if (r) fx.update({ ...r, themes: s.themes, intervalMin: s.intervalMin }); }
   const entries = s.themes || []; const ci = entries.indexOf(s.current); const nextEntry = entries.length ? entries[(ci + 1) % entries.length] : null;
-  const left = s.nextAt ? new Date(s.nextAt).getTime() - now : 0;
+  const left = s.nextAt && now ? new Date(s.nextAt).getTime() - now : 0;
   return (
     <div id="slideshow" className="card" style={{ scrollMarginTop: 72 }}>
       <div className="card-title">

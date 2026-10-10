@@ -8,13 +8,15 @@ const securityHeaders = [
       "default-src 'self'",
       "script-src 'self' 'unsafe-inline'" + (process.env.NODE_ENV === "production" ? "" : " 'unsafe-eval'"),
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob:",
+      "img-src 'self' data: blob:", "media-src 'self' blob:",
       "font-src 'self' data:",
       "connect-src 'self' https://geocoding-api.open-meteo.com https://api.open-meteo.com",
       "manifest-src 'self'", "worker-src 'self'", "frame-ancestors 'none'", "base-uri 'self'", "form-action 'self'",
     ].join("; ") },
 ];
+const { version } = require("./package.json");
 const nextConfig = {
+  env: { NEXT_PUBLIC_APP_VERSION: version },
   poweredByHeader: false,
   reactStrictMode: true,
   serverExternalPackages: ["pg"],
