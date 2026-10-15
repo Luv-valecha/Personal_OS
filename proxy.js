@@ -5,7 +5,8 @@ import { NextResponse } from "next/server";
 const PUBLIC = ["/login", "/register", "/offline", "/manifest.webmanifest", "/sw.js"];
 export function proxy(req) {
   const { pathname } = req.nextUrl;
-  const isPublic = PUBLIC.some((p) => pathname === p) || pathname.startsWith("/icons/");
+  // /api/mobile/* authenticates itself with a Bearer pairing token (Android companion); every other /api route still needs the session cookie.
+  const isPublic = PUBLIC.some((p) => pathname === p) || pathname.startsWith("/icons/") || pathname.startsWith("/api/mobile/");
   const has = req.cookies.has("session");
   if (!has && !isPublic) {
     if (pathname.startsWith("/api/")) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

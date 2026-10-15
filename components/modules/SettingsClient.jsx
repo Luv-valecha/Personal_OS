@@ -42,6 +42,7 @@ export default function SettingsClient({ user, settings, customThemes, quickLink
       <section className="card"><div className="card-title">Notifications</div>
         <p className="small muted mb-3">In-app notifications (the bell) are always on. Browser alerts are optional and only fire while the app is open or installed.</p>
         {perm === "unsupported" ? <p className="small">Not supported in this browser.</p> : perm === "granted" ? <p className="small">Browser alerts are enabled.</p> : perm === "denied" ? <p className="small">Blocked — enable notifications for this site in your browser settings.</p> : <button className="btn" onClick={() => Notification.requestPermission().then(setPerm)}>Enable browser alerts</button>}</section>
+      <section className="card"><div className="card-title">Android companion</div><p className="small muted" style={{ margin: "0 0 10px" }}>Link your phone to use the JARVIS home-screen widget.</p><Link className="btn" href="/settings/android">Manage linked phones</Link></section>
       <section className="card"><div className="card-title">About</div><p className="small muted" style={{ margin: 0 }}>Lucifer&apos;s OS · version {process.env.NEXT_PUBLIC_APP_VERSION}</p></section>
       <section className="card"><div className="card-title">Account</div><form action={logoutAction}><button className="btn"><LogOut size={15} /> Sign out</button></form></section>
     </div></>);
