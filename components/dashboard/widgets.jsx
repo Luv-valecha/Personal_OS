@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { CloudSun, MapPin } from "lucide-react";
 import TaskRow from "@/components/tasks/TaskRow";
 import SortableTaskList from "@/components/tasks/SortableTaskList";
@@ -49,6 +50,7 @@ export function OverviewWidget({ data, ctx }) {
   </>);
 }
 export function TasksWidget({ data, ctx }) {
+  const router = useRouter();
   const { run, pending } = useAction();
   const [mode, setMode] = useState(ctx.taskSort || "manual");
   const [expanded, setExpanded] = useState(false);
@@ -94,6 +96,7 @@ export function TasksWidget({ data, ctx }) {
             tasks={tasks}
             today={ctx.today}
             compact
+            onOpen={(t) => router.push(`/tasks?open=${t.id}`)}
             canDrag={mode === "manual"}
           />
 

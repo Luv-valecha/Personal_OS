@@ -6,7 +6,7 @@ import Modal from "@/components/ui/Modal";
 import { Field, PrioritySelect, Chips } from "@/components/ui/Fields";
 import { Empty, Progress } from "@/components/ui/misc";
 import { useAction } from "@/components/ui/useAction";
-import { createProject, updateProject, deleteProject } from "@/actions/projects";
+import { createProject, updateProject, deleteProject, getProjectDeleteImpact } from "@/actions/projects";
 import { createTask, toggleTask } from "@/actions/tasks";
 import { createIdea } from "@/actions/ideas";
 import IdeaEditor from "@/components/ideas/IdeaEditor";
@@ -39,7 +39,12 @@ function ProjectEditor({ p, allProjects = [], today, onClose }) {
   const [links, setLinks] = useState(p.links || []); const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }));
   async function save(e) { e.preventDefault(); const body = { ...f, start_date: f.start_date || null, deadline: f.deadline || null, links: links.filter((l) => l.url.trim()) };
     const r = await run(() => (isNew ? createProject(body) : updateProject(p.id, body)), { ok: isNew ? "Project created" : "Project saved" }); if (r) onClose(); }
-  async function del() { if (confirm("Delete this project? Tasks and notes stay, but are unlinked.") && await run(() => deleteProject(p.id), { ok: "Project deleted" })) onClose(); }
+  async function del() {
+    const imp = await run(() => getProjectDeleteImpact(p.id)); if (!imp) return;
+    const parts = [["task", imp.tasks], ["idea", imp.ideas], ["note", imp.notes], ["deadline", imp.deadlines], ["file", imp.files]].filter(([, n]) => n > 0).map(([k, n]) => `${n} ${k}${n === 1 ? "" : "s"}`);
+    const msg = `Delete "${imp.name}" permanently?\n\n` + (parts.length ? `This will also delete: ${parts.join(", ")}.` : "It has no tasks, ideas, notes, deadlines or files.") + "\n\nThis cannot be undone.";
+    if (confirm(msg) && await run(() => deleteProject(p.id), { ok: "Project and its contents deleted" })) onClose();
+  }
   async function addTask() { if (!newTask.trim()) return; const r = await run(() => createTask({ title: newTask, project_id: p.id })); if (r) setNewTask(""); }
   const pct = p.total ? Math.round((p.done / p.total) * 100) : 0;
   return (<Modal open onClose={onClose} title={isNew ? "New project" : p.name} wide>

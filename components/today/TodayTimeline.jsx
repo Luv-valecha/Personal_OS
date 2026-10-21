@@ -1,12 +1,14 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { CalendarDays, Timer } from "lucide-react";
 import TaskRow from "@/components/tasks/TaskRow";
 import { fmtTime, fmtDuration, urgency, relDay } from "@/lib/dates";
 import { Empty } from "@/components/ui/misc";
 
 export default function TodayTimeline({ data, ctx, full = false }) {
+  const router = useRouter();
   const t = data.timeline || { events: [], focus: [], tasks: [], deadlines: [] };
   const [now, setNow] = useState(null);
   useEffect(() => { setNow(Date.now()); const i = setInterval(() => setNow(Date.now()), 60000); return () => clearInterval(i); }, []);
@@ -26,7 +28,7 @@ export default function TodayTimeline({ data, ctx, full = false }) {
           {next && <span className="chip chip-active">Next</span>}</div>); })}
       {(t.tasks.length > 0 || t.deadlines.length > 0) && <div className="small muted" style={{ margin: "10px 0 2px" }}>Anytime today</div>}
       {t.deadlines.map((d) => <div key={d.id} className="list-row small"><span className={`dot ${urgency(d.due_date, ctx.today)}`} /><span className="grow trunc">{d.title}</span><span className="muted">{relDay(d.due_date, ctx.today)}</span></div>)}
-      {full && t.tasks.map((x) => <TaskRow key={x.id} task={x} today={ctx.today} compact />)}
+      {full && t.tasks.map((x) => <TaskRow key={x.id} task={x} today={ctx.today} compact onOpen={(task) => router.push(`/tasks?open=${task.id}`)} />)}
     </>}
   </>);
 }

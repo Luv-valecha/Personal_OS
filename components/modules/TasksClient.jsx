@@ -63,9 +63,9 @@ export default function TasksClient({ tasks, projects, today, initialQuery, open
 
 function TaskEditor({ task, projects, onClose, today }) {
   const { run, pending } = useAction();
-  const [f, setF] = useState({ title: task.title, notes: task.notes, due_date: task.due_date || "", priority: task.priority, project_id: task.project_id || "", tags: tagsToString(task.tags), recurrence: task.recurrence, estimate_minutes: task.estimate_minutes ?? "" });
+  const [f, setF] = useState({ title: task.title, notes: task.notes, due_date: task.due_date || "", scheduled_date: task.scheduled_date || "", priority: task.priority, project_id: task.project_id || "", tags: tagsToString(task.tags), recurrence: task.recurrence, estimate_minutes: task.estimate_minutes ?? "" });
   const [sub, setSub] = useState(""); const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }));
-  async function save(e) { e.preventDefault(); const r = await run(() => updateTask(task.id, { ...f, due_date: f.due_date || null, project_id: f.project_id || null }), { ok: "Task updated" }); if (r) onClose(); }
+  async function save(e) { e.preventDefault(); const r = await run(() => updateTask(task.id, { ...f, due_date: f.due_date || null, scheduled_date: f.scheduled_date || null, project_id: f.project_id || null }), { ok: "Task updated" }); if (r) onClose(); }
   async function del() { if (!confirm("Delete this task?")) return; if (await run(() => deleteTask(task.id), { ok: "Task deleted" })) onClose(); }
   return (
     <Modal open onClose={onClose} title="Edit task" wide>
@@ -73,8 +73,9 @@ function TaskEditor({ task, projects, onClose, today }) {
         <Field label="Title"><input className="input" value={f.title} onChange={set("title")} required /></Field>
         <Field label="Notes"><textarea className="textarea" value={f.notes} onChange={set("notes")} style={{ minHeight: 70 }} /></Field>
         <div className="form-grid two">
-          <Field label="Due date"><div className="flex gap-1"><input type="date" className="input" value={f.due_date} onChange={set("due_date")} />
+          <Field label="Due date (deadline)"><div className="flex gap-1"><input type="date" className="input" value={f.due_date} onChange={set("due_date")} />
             <button type="button" className="btn btn-sm" onClick={() => setF((s) => ({ ...s, due_date: today }))}>Today</button><button type="button" className="btn btn-sm" onClick={() => setF((s) => ({ ...s, due_date: addDays(today, 1) }))}>Tmrw</button></div></Field>
+          <Field label="Scheduled date (optional — the day you plan to work on it)"><div className="flex gap-1"><input type="date" className="input" value={f.scheduled_date} onChange={set("scheduled_date")} /><button type="button" className="btn btn-sm" onClick={() => setF((s) => ({ ...s, scheduled_date: today }))}>Today</button>{f.scheduled_date && <button type="button" className="btn btn-sm" onClick={() => setF((s) => ({ ...s, scheduled_date: "" }))} aria-label="Clear scheduled date">Clear</button>}</div></Field>
           <Field label="Priority"><PrioritySelect value={f.priority} onChange={set("priority")} /></Field>
           <Field label="Project"><ProjectSelect projects={projects} value={f.project_id} onChange={set("project_id")} /></Field>
           <Field label="Estimate (minutes, optional)"><input className="input" type="number" min="1" max="1440" inputMode="numeric" value={f.estimate_minutes} onChange={set("estimate_minutes")} placeholder="45" /></Field>

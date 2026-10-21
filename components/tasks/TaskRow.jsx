@@ -20,6 +20,7 @@ export default function TaskRow({ task, today, onOpen, compact = false, handle =
       </button>
       {task.recurrence && task.recurrence !== "none" && <Repeat size={13} className="muted" aria-label={`Repeats ${task.recurrence}`} />}
       {task.priority === "high" && !done && <span className="pri-high small" title="High priority">●</span>}
+      {task.scheduled_date && !compact && <span className="chip" title="Scheduled date">▸ {relDay(task.scheduled_date, today)}</span>}
       {task.due_date && <span className={`small ${overdue ? "pri-high" : "muted"}`} style={{ whiteSpace: "nowrap" }}>{relDay(task.due_date, today)}</span>}
     </div>
   );

@@ -2,7 +2,7 @@
   "name": "personal-dashboard",
   "version": "3.1.21",
   "private": true,
-  "description": "Lucifer's personal operating system \u2014 Next.js + PostgreSQL PWA (JavaScript only)",
+  "description": "Lucifer's personal operating system — Next.js + PostgreSQL PWA (JavaScript only)",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -14,7 +14,8 @@
     "db:reset": "node scripts/migrate.js --reset && node scripts/seed.js",
     "icons": "node scripts/make-icons.js",
     "test": "node --experimental-default-type=module --import ./tests/register.mjs --test tests/unit/*.test.mjs",
-    "mock:gemini": "node tests/mock-gemini.mjs"
+    "mock:gemini": "node tests/mock-gemini.mjs",
+    "test:db": "node tests/integration/migration-006.test.mjs"
   },
   "engines": {
     "node": ">=20"
