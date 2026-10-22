@@ -9,9 +9,10 @@ import { useAction } from "@/components/ui/useAction";
 import { createNote, updateNote, deleteNote, togglePinNote, toggleArchiveNote } from "@/actions/notes";
 import { fmtDate } from "@/lib/dates";
 
-export default function NotesClient({ notes, initialQuery }) {
+export default function NotesClient({ notes, initialQuery, openId = "" }) {
   const [q, setQ] = useState(initialQuery); const [tab, setTab] = useState("active"); const [tag, setTag] = useState(""); const [open, setOpen] = useState(null);
   useEffect(() => { const a = new URLSearchParams(window.location.search); if (a.get("add") === "note") setOpen({}); }, []);
+  useEffect(() => { if (openId) { const n = notes.find((x) => x.id === openId); if (n) setOpen(n); } }, [openId]); // eslint-disable-line
   const tags = useMemo(() => [...new Set(notes.flatMap((n) => n.tags || []))].sort(), [notes]);
   const list = useMemo(() => notes.filter((n) => (tab === "archived") === n.archived)
     .filter((n) => !tag || n.tags?.includes(tag))

@@ -10,6 +10,8 @@ import { createProject, updateProject, deleteProject, getProjectDeleteImpact } f
 import { createTask, toggleTask } from "@/actions/tasks";
 import { createIdea } from "@/actions/ideas";
 import IdeaEditor from "@/components/ideas/IdeaEditor";
+import BugsSection from "@/components/bugs/BugsSection";
+import Link from "next/link";
 import { STATUS_LABEL } from "@/lib/format";
 import { fmtDate, relDay } from "@/lib/dates";
 
@@ -41,7 +43,7 @@ function ProjectEditor({ p, allProjects = [], today, onClose }) {
     const r = await run(() => (isNew ? createProject(body) : updateProject(p.id, body)), { ok: isNew ? "Project created" : "Project saved" }); if (r) onClose(); }
   async function del() {
     const imp = await run(() => getProjectDeleteImpact(p.id)); if (!imp) return;
-    const parts = [["task", imp.tasks], ["idea", imp.ideas], ["note", imp.notes], ["deadline", imp.deadlines], ["file", imp.files]].filter(([, n]) => n > 0).map(([k, n]) => `${n} ${k}${n === 1 ? "" : "s"}`);
+    const parts = [["task", imp.tasks], ["idea", imp.ideas], ["note", imp.notes], ["deadline", imp.deadlines], ["file", imp.files], ["bug", imp.bugs], ["checklist", imp.checklists]].filter(([, n]) => n > 0).map(([k, n]) => `${n} ${k}${n === 1 ? "" : "s"}`);
     const msg = `Delete "${imp.name}" permanently?\n\n` + (parts.length ? `This will also delete: ${parts.join(", ")}.` : "It has no tasks, ideas, notes, deadlines or files.") + "\n\nThis cannot be undone.";
     if (confirm(msg) && await run(() => deleteProject(p.id), { ok: "Project and its contents deleted" })) onClose();
   }
@@ -64,11 +66,12 @@ function ProjectEditor({ p, allProjects = [], today, onClose }) {
         <button type="button" className="btn btn-sm" onClick={() => setLinks((a) => [...a, { title: "", url: "" }])}><Plus size={14} /> Add link</button></div>
       {!isNew && <>
         <div><span className="label">Tasks</span>
-          {p.tasks?.map((t) => <div key={t.id} className="list-row"><input type="checkbox" className="check" defaultChecked={t.completed} onChange={() => run(() => toggleTask(t.id))} aria-label={t.title} /><span className="grow">{t.title}</span></div>)}
+          {p.tasks?.map((t) => <div key={t.id} className="list-row"><input type="checkbox" className="check" defaultChecked={t.completed} onChange={() => run(() => toggleTask(t.id))} aria-label={t.title} /><Link className="grow" href={`/tasks?open=${t.id}`} title="Open to edit">{t.title}</Link></div>)}
           <div className="flex gap-2 mt-2"><input className="input" value={newTask} onChange={(e) => setNewTask(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTask(); } }} placeholder="Add a task to this project" aria-label="New project task" /><button type="button" className="btn" onClick={addTask}>Add</button></div></div>
         <div><span className="label">Ideas ({p.ideas?.length || 0})</span>
           {p.ideas?.map((i) => <button type="button" key={i.id} className="list-row w-full text-left" style={{ background: "none", border: 0, color: "inherit", font: "inherit", cursor: "pointer" }} onClick={() => setIdeaOpen(i)}><span className="grow trunc">{i.title}</span>{i.tasks?.length > 0 && <span className="chip">{i.tasks.length} task{i.tasks.length > 1 ? "s" : ""}</span>}<span className="chip">{i.status}</span></button>)}
           <div className="flex gap-2 mt-2"><input className="input" value={newIdea} onChange={(e) => setNewIdea(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addIdea(); } }} placeholder="Add an idea to this project" aria-label="New project idea" /><button type="button" className="btn" onClick={addIdea}>Add idea</button></div></div>
+        <BugsSection p={p} />
         {(p.notes?.length > 0 || p.files?.length > 0) && <div className="small muted">{p.notes?.length > 0 && <div>Notes: {p.notes.map((n) => n.title || "Untitled").join(", ")}</div>}{p.files?.length > 0 && <div>Files: {p.files.map((x) => x.name).join(", ")}</div>}</div>}
         {p.links?.filter((l) => /^https?:\/\//i.test(l.url)).length > 0 && <div className="flex flex-wrap gap-2">{p.links.filter((l) => /^https?:\/\//i.test(l.url)).map((l, i) => <a key={i} className="chip" href={l.url} target="_blank" rel="noopener noreferrer"><ExternalLink size={11} />{l.title || l.url}</a>)}</div>}</>}
       <div className="flex justify-between">{!isNew ? <button type="button" className="btn btn-danger" onClick={del}><Trash2 size={15} /> Delete</button> : <span />}<div className="flex gap-2"><button type="button" className="btn" onClick={onClose}>Close</button><button className="btn btn-primary" disabled={pending}>Save</button></div></div>

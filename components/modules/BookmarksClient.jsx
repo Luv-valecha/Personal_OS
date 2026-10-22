@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Star, Archive, ArchiveRestore, Trash2, Plus, Pencil } from "lucide-react";
 import PageHead from "@/components/ui/PageHead";
 import Modal from "@/components/ui/Modal";
@@ -10,8 +10,9 @@ import { createBookmark, updateBookmark, deleteBookmark, toggleFavoriteBookmark,
 import { fmtDate } from "@/lib/dates";
 
 const CATS = ["development", "research", "education", "entertainment", "shopping", "ideas", "other"].map((c) => ({ value: c, label: c[0].toUpperCase() + c.slice(1) }));
-export default function BookmarksClient({ items, initialQuery }) {
+export default function BookmarksClient({ items, initialQuery, openId = "" }) {
   const { run, pending } = useAction(); const [url, setUrl] = useState(""); const [cat, setCat] = useState(""); const [q, setQ] = useState(initialQuery); const [tab, setTab] = useState("all"); const [edit, setEdit] = useState(null); const [limit, setLimit] = useState(60);
+  useEffect(() => { if (openId) { const b = items.find((x) => x.id === openId); if (b) setEdit(b); } }, [openId]); // eslint-disable-line
   const list = useMemo(() => items.filter((b) => (tab === "archived" ? b.archived : !b.archived)).filter((b) => tab !== "favorites" || b.favorite).filter((b) => !cat || b.category === cat)
     .filter((b) => !q || (b.title + b.url + b.description + (b.tags || []).join(" ")).toLowerCase().includes(q.toLowerCase())), [items, tab, cat, q]);
   async function add(e) { e.preventDefault(); if (!url.trim()) return; const r = await run(() => createBookmark({ url, category: cat || "other" }), { ok: "Bookmark saved" }); if (r) setUrl(""); }

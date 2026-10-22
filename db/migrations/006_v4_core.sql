@@ -12,7 +12,7 @@ BEGIN
   FOREACH t IN ARRAY ARRAY['tasks','ideas','notes','deadlines','files'] LOOP
     FOR c IN
       SELECT con.conname FROM pg_constraint con
-      JOIN pg_class rel ON rel.oid = con.conrelid
+      JOIN pg_class rel ON rel.oid = con.conrelid AND rel.oid = t::regclass   -- scoped to THIS schema's table
       JOIN pg_attribute att ON att.attrelid = rel.oid AND att.attnum = ANY (con.conkey)
       WHERE con.contype = 'f' AND rel.relname = t AND att.attname = 'project_id'
         AND con.confrelid = 'projects'::regclass

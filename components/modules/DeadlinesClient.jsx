@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import PageHead from "@/components/ui/PageHead";
 import Modal from "@/components/ui/Modal";
@@ -9,9 +9,10 @@ import { useAction } from "@/components/ui/useAction";
 import { createDeadline, updateDeadline, deleteDeadline, toggleDeadline } from "@/actions/deadlines";
 import { relDay, urgency, fmtDate } from "@/lib/dates";
 
-export default function DeadlinesClient({ deadlines, projects, today, filter: initialFilter = "" }) {
+export default function DeadlinesClient({ deadlines, projects, today, openId = "", filter: initialFilter = "" }) {
   const [filter, setFilter] = useState(initialFilter);
   const { run } = useAction(); const [edit, setEdit] = useState(null); const [showDone, setShowDone] = useState(false);
+  useEffect(() => { if (openId) { const d = deadlines.find((x) => x.id === openId); if (d) setEdit(d); } }, [openId]); // eslint-disable-line
   const open = deadlines.filter((d) => !d.completed).filter((d) => !filter || (filter === "overdue" ? d.due_date < today : d.due_date <= today)); const done = deadlines.filter((d) => d.completed);
   const Row = ({ d }) => (
     <div className="list-row">

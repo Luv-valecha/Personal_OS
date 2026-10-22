@@ -59,7 +59,15 @@ export function TasksWidget({ data, ctx }) {
     setMode(ctx.taskSort || "manual");
   }, [ctx.taskSort]);
 
-  const allTasks = sortTasks(data.tasks || [], mode);
+  // Project filter: only projects that currently have tasks are offered. "__none" = tasks without a project.
+  const [proj, setProj] = useState("");
+  useEffect(() => { try { setProj(localStorage.getItem("dash.taskProject") || ""); } catch {} }, []);
+  const projects = [...new Map((data.tasks || []).filter((t) => t.project_id).map((t) => [t.project_id, t.project_name])).entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  const hasNone = (data.tasks || []).some((t) => !t.project_id);
+  const activeProj = proj === "__none" ? proj : projects.some(([id]) => id === proj) ? proj : "";   // a deleted project falls back to "All"
+  const pickProj = (v) => { setProj(v); setExpanded(false); try { v ? localStorage.setItem("dash.taskProject", v) : localStorage.removeItem("dash.taskProject"); } catch {} };
+  const scoped = (data.tasks || []).filter((t) => !activeProj || (activeProj === "__none" ? !t.project_id : t.project_id === activeProj));
+  const allTasks = sortTasks(scoped, mode);
   const tasks = expanded ? allTasks : allTasks.slice(0, 5);
 
   const change = async (m) => {
@@ -77,6 +85,12 @@ export function TasksWidget({ data, ctx }) {
         <span>All tasks ({allTasks.length})</span>
 
         <span className="flex items-center gap-3">
+          {(projects.length > 0) && (
+            <select className="select" style={{ maxWidth: 140, padding: "2px 6px", fontSize: 12 }} value={activeProj} onChange={(e) => pickProj(e.target.value)} aria-label="Filter tasks by project">
+              <option value="">All projects</option>
+              {projects.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+              {hasNone && <option value="__none">No project</option>}
+            </select>)}
           <SortSelect
             value={mode}
             onChange={change}
@@ -87,8 +101,8 @@ export function TasksWidget({ data, ctx }) {
 
       {allTasks.length === 0 ? (
         <Empty
-          title="No tasks yet"
-          hint="Add a task with the + button."
+          title={activeProj ? "No tasks in this project" : "No tasks yet"}
+          hint={activeProj ? "Pick another project or All projects." : "Add a task with the + button."}
         />
       ) : (
         <>
@@ -137,13 +151,13 @@ export function DeadlinesWidget({ data, ctx }) {
   const d = data.deadlines || [];
   return (<><Title href="/deadlines">Deadlines</Title>
     {d.length === 0 ? <Empty title="No deadlines" hint="You're clear." /> : d.slice(0, 5).map((x) => (
-      <div key={x.id} className="list-row"><span className={`dot ${urgency(x.due_date, ctx.today)}`} /><span className="grow trunc">{x.title}</span><span className="small muted">{relDay(x.due_date, ctx.today)}</span></div>))}</>);
+      <Link key={x.id} href={`/deadlines?open=${x.id}`} className="list-row"><span className={`dot ${urgency(x.due_date, ctx.today)}`} /><span className="grow trunc">{x.title}</span><span className="small muted">{relDay(x.due_date, ctx.today)}</span></Link>))}</>);
 }
 export function CalendarWidget({ data, ctx }) {
   const e = (data.events || []).filter((x) => new Date(x.ends_at) > new Date()).slice(0, 5);
   return (<><Title href="/calendar">Upcoming events</Title>
     {e.length === 0 ? <Empty title="No events this week" /> : e.map((x) => (
-      <div key={x.id + x.occurrence} className="list-row"><span className="small muted" style={{ width: 84 }}>{relDay(dateInTz(x.starts_at, ctx.tz), ctx.today)}</span><span className="grow trunc">{x.title}</span><span className="small muted">{fmtTime(x.starts_at, ctx.tz)}</span></div>))}</>);
+      <Link key={x.id + x.occurrence} href={`/calendar?open=${x.id}`} className="list-row"><span className="small muted" style={{ width: 84 }}>{relDay(dateInTz(x.starts_at, ctx.tz), ctx.today)}</span><span className="grow trunc">{x.title}</span><span className="small muted">{fmtTime(x.starts_at, ctx.tz)}</span></Link>))}</>);
 }
 export function MoneyWidget({ data, ctx }) {
   const m = data.money || { today: 0, week: 0, month: 0 }; const pct = ctx.budget > 0 ? (m.month / ctx.budget) * 100 : 0;
@@ -171,7 +185,7 @@ export function NotesWidget({ data }) {
   const n = data.notes || [];
   return (<><Title href="/notes">Notes</Title>
     {n.length === 0 ? <Empty title="No notes yet" /> : n.map((x) => (
-      <Link key={x.id} href="/notes" className="list-row" style={{ alignItems: "flex-start", flexDirection: "column", gap: 0 }}><span className="trunc w-full">{x.pinned ? "📌 " : ""}{x.title || "Untitled"}</span><span className="small muted trunc w-full">{x.body.replace(/[#*`>\-\[\]]/g, "").slice(0, 80)}</span></Link>))}</>);
+      <Link key={x.id} href={`/notes?open=${x.id}`} className="list-row" style={{ alignItems: "flex-start", flexDirection: "column", gap: 0 }}><span className="trunc w-full">{x.pinned ? "📌 " : ""}{x.title || "Untitled"}</span><span className="small muted trunc w-full">{x.body.replace(/[#*`>\-\[\]]/g, "").slice(0, 80)}</span></Link>))}</>);
 }
 export function FocusWidget({ data }) {
   const f = useFocus(); const today = data.focus?.today || 0;

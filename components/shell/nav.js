@@ -1,4 +1,4 @@
-import { Users, Music, Sun, LayoutDashboard, CheckSquare, CalendarDays, Flag, StickyNote, Bookmark, FolderKanban, Lightbulb, Timer, Wallet, Files, Code2, Activity, Search, Settings } from "lucide-react";
+import { Users, Music, Sun, LayoutDashboard, CheckSquare, CalendarDays, Flag, StickyNote, Bookmark, FolderKanban, Lightbulb, ListChecks, Timer, Wallet, Files, Code2, Activity, Search, Settings } from "lucide-react";
 export const NAV = [
   { href: "/today", label: "Today", icon: Sun },
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -9,6 +9,7 @@ export const NAV = [
   { href: "/bookmarks", label: "Bookmarks", icon: Bookmark },
   { href: "/projects", label: "Projects", icon: FolderKanban },
   { href: "/ideas", label: "Ideas", icon: Lightbulb },
+  { href: "/checklists", label: "Checklists", icon: ListChecks },
   { href: "/focus", label: "Focus", icon: Timer },
   { href: "/expenses", label: "Expenses", icon: Wallet },
   { href: "/splits", label: "Splits", icon: Users },

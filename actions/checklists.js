@@ -1,0 +1,12 @@
+"use server";
+import { requireUserId } from "@/lib/auth";
+import { safe } from "@/lib/crud";
+import * as cl from "@/lib/checklists";
+const w = (fn) => async (...a) => safe(async () => fn(await requireUserId(), ...a));
+export const createChecklist = w(cl.createChecklist);
+export const renameChecklist = w(cl.renameChecklist);
+export const deleteChecklist = w(cl.deleteChecklist);
+export const addChecklistItem = w(cl.addItem);
+export const updateChecklistItem = w(cl.updateItem);
+export const deleteChecklistItem = w(cl.deleteItem);
+export const moveChecklistItem = w(cl.moveItem);

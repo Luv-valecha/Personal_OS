@@ -21,3 +21,10 @@ test("@project with spaces is passed through for server-side validation (tasks a
   assert.deepEqual(D("Add idea: plain idea", TZ).args, { title: "Plain idea" });
 });
 test("unrelated text falls through to the AI (null)", () => { assert.equal(D("what's the capital of France", TZ), null); });
+test("theme commands", () => {
+  assert.deepEqual(D("Switch to Hell theme", TZ), { tool: "set_theme", args: { theme: "Hell" } });
+  assert.deepEqual(D("Change my theme to Dark", TZ), { tool: "set_theme", args: { theme: "Dark" } });
+  assert.deepEqual(D("Use the default theme", TZ), { tool: "set_theme", args: { theme: "default" } });
+  assert.equal(D("What themes are available?", TZ).tool, "list_themes");
+  assert.equal(D("switch to dashboard", TZ), null);   // not a theme name → must not hijack navigation-ish text
+});

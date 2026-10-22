@@ -9,6 +9,7 @@ import { useToast } from "@/components/ui/Toast";
 import { parseCommand } from "@/lib/commands";
 import { quickAddTask } from "@/actions/tasks";
 import { quickAddIdea } from "@/actions/ideas";
+import { quickAddBug } from "@/actions/bugs";
 import { createNote } from "@/actions/notes";
 import { createProject } from "@/actions/projects";
 import { createBookmark } from "@/actions/bookmarks";
@@ -21,7 +22,7 @@ import { startSlideshow, slideshowControl } from "@/actions/slideshow";
 const HREF = { splits: "/splits", tasks: "/tasks", notes: "/notes", projects: "/projects", bookmarks: "/bookmarks", ideas: "/ideas", deadlines: "/deadlines", files: "/files", activity: "/activity", quicklinks: "/settings#quicklinks" };
 const LABEL = { quicklinks: "Quick links", splits: "Splits", projects: "Projects", tasks: "Tasks", notes: "Notes", bookmarks: "Bookmarks", deadlines: "Deadlines", files: "Files", ideas: "Ideas", activity: "Activity" };
 const SCOPES = { project: "projects", note: "notes", task: "tasks" };
-const CREATORS = { task: (p) => quickAddTask(p.text), idea: (p) => quickAddIdea(p.title), note: createNote, project: createProject, bookmark: createBookmark, expense: createExpense, deadline: createDeadline, event: createEvent, link: createQuickLink };
+const CREATORS = { task: (p) => quickAddTask(p.text), idea: (p) => quickAddIdea(p.title), bug: (p) => quickAddBug(p.title), note: createNote, project: createProject, bookmark: createBookmark, expense: createExpense, deadline: createDeadline, event: createEvent, link: createQuickLink };
 
 // Search cache: identical queries within 60 s never hit the network again.
 const cache = new Map();
@@ -63,7 +64,7 @@ export default function CommandPalette({ open, onClose, onAdd, onTheme, onSlides
     if (i.type === "create") {
       const res = await CREATORS[i.entity](i.payload).catch(() => null);
       if (!res?.ok) { toast(res?.error || "Couldn't do that. Try the form instead.", "err"); return; }
-      toast(i.title.replace(/^(Create|Add|Capture|Save)/, (m) => ({ Create: "Created", Add: "Added", Capture: "Captured", Save: "Saved" }[m]))); cache.clear(); onClose();
+      toast(i.title.replace(/^(Create|Add|Capture|Save|Log)/, (m) => ({ Create: "Created", Add: "Added", Capture: "Captured", Save: "Saved", Log: "Logged" }[m]))); cache.clear(); onClose();
     }
   }
 

@@ -34,7 +34,10 @@ export default function JarvisBar() {
       if (r.status === 401) { window.location.href = "/login"; return; }
       const j = await r.json().catch(() => ({ type: "error", text: "Unexpected response from the server.", cards: [] }));
       setRes(j);
-      for (const a of j.clientActions || []) if (a.type === "focus" && focus) focus.start("focus", a.minutes, a.label, a.taskId);
+      for (const a of j.clientActions || []) {
+        if (a.type === "focus" && focus) focus.start("focus", a.minutes, a.label, a.taskId);
+        if (a.type === "theme" && typeof a.theme === "string") { document.documentElement.setAttribute("data-theme", a.theme); document.documentElement.removeAttribute("style"); }   // server already validated + saved it
+      }
       if (userText) setHistory((h) => [...h, { role: "user", text: userText }, { role: "assistant", text: j.text || "" }].slice(-MAX_HISTORY));
       if (j.type !== "clarify" && j.type !== "confirm") setHistory((h) => h.slice(-2)); // keep only the last exchange once a request is finished
       if (j.type !== "error") setText("");

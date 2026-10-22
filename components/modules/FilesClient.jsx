@@ -1,13 +1,14 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Upload, Download, Trash2, FileText } from "lucide-react";
+import { Upload, Download, Trash2, FileText, Pencil } from "lucide-react";
+import Modal from "@/components/ui/Modal";
 import PageHead from "@/components/ui/PageHead";
 import { Empty, Tags, ErrorBox } from "@/components/ui/misc";
 import { ProjectSelect } from "@/components/ui/Fields";
 import { useAction } from "@/components/ui/useAction";
 import { useToast } from "@/components/ui/Toast";
-import { deleteFile } from "@/actions/settings";
+import { deleteFile, updateFileMeta } from "@/actions/settings";
 import { fmtDate } from "@/lib/dates";
 
 const size = (b) => b < 1024 ? `${b} B` : b < 1048576 ? `${(b / 1024).toFixed(1)} KB` : `${(b / 1048576).toFixed(1)} MB`;
@@ -25,6 +26,7 @@ export default function FilesClient({ files, projects, maxMb }) {
     } catch (e) { setErr(e.message === "Failed to fetch" ? "Network problem — check your connection and retry." : e.message); }
     setBusy(false); if (input.current) input.current.value = "";
   }
+  const [editing, setEditing] = useState(null);
   const list = files.filter((f) => !q || (f.name + (f.tags || []).join(" ")).toLowerCase().includes(q.toLowerCase()));
   return (<>
     <PageHead title="Files" sub={`Stored in your PostgreSQL database · ${maxMb} MB per file on the free tier.`} />
@@ -38,10 +40,28 @@ export default function FilesClient({ files, projects, maxMb }) {
       {err && <div className="mt-3"><ErrorBox onRetry={last ? () => upload(last) : undefined}>{err}</ErrorBox></div>}
     </div>
     <input className="input mb-3" style={{ maxWidth: 260 }} placeholder="Search files…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search files" />
+    {editing && <FileEditor key={editing.id} file={editing} projects={projects} onClose={() => setEditing(null)} />}
     <div className="card" style={{ padding: 8 }}>{list.length === 0 ? <Empty title="No files" hint="Upload your first file above." /> : list.map((f) => (
       <div key={f.id} className="list-row"><FileText size={18} className="muted" /><div className="grow" style={{ minWidth: 0 }}><div className="trunc">{f.name}</div><div className="small muted">{size(f.size_bytes)} · {fmtDate(f.created_at, { day: "numeric", month: "short", year: "numeric" })}{f.project_name ? ` · ${f.project_name}` : ""}</div></div>
         <span className="hidden sm:block"><Tags tags={f.tags?.slice(0, 2)} /></span>
+        <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setEditing(f)} aria-label={`Edit ${f.name}`}><Pencil size={15} /></button>
         <a className="btn btn-ghost btn-icon btn-sm" href={`/api/files/${f.id}`} download aria-label={`Download ${f.name}`}><Download size={15} /></a>
         <button className="btn btn-ghost btn-icon btn-sm" onClick={() => confirm(`Delete ${f.name}?`) && run(() => deleteFile(f.id), { ok: "File deleted" })} aria-label={`Delete ${f.name}`}><Trash2 size={15} /></button></div>))}</div>
   </>);
+}
+
+// Rename a file and change its tags / project (the file's contents are not touched).
+function FileEditor({ file, projects, onClose }) {
+  const { run, pending } = useAction();
+  const [f, setF] = useState({ name: file.name, tags: (file.tags || []).join(", "), project_id: file.project_id || "" });
+  async function save(e) {
+    e.preventDefault(); if (pending || !f.name.trim()) return;
+    const tags = f.tags.split(",").map((t) => t.trim().toLowerCase()).filter(Boolean);
+    if (await run(() => updateFileMeta(file.id, { name: f.name, tags, project_id: f.project_id || null }), { ok: "File updated" })) onClose();
+  }
+  return (<Modal open onClose={onClose} title="Edit file"><form onSubmit={save} className="flex flex-col gap-3">
+    <label className="field"><span className="label">Name</span><input className="input" value={f.name} maxLength={200} onChange={(e) => setF({ ...f, name: e.target.value })} autoFocus required /></label>
+    <label className="field"><span className="label">Tags (comma separated)</span><input className="input" value={f.tags} onChange={(e) => setF({ ...f, tags: e.target.value })} /></label>
+    <label className="field"><span className="label">Project</span><ProjectSelect projects={projects} value={f.project_id} onChange={(v) => setF({ ...f, project_id: v?.target ? v.target.value : v })} /></label>
+    <div className="flex justify-end gap-2"><button type="button" className="btn" onClick={onClose}>Cancel</button><button className="btn btn-primary" disabled={pending}>{pending ? "Saving…" : "Save"}</button></div></form></Modal>);
 }

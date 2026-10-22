@@ -5,19 +5,14 @@ import { requireUserId } from "@/lib/auth";
 import { safe, fail, refresh } from "@/lib/crud";
 import { customThemeSchema } from "@/lib/validation";
 import { isThemeId, MOTION } from "@/lib/themes";
+import { applyTheme } from "@/lib/theme-service";
 import { normalizeLayout } from "@/lib/layout";
 import { z } from "zod";
 
 const COOKIE_OPTS = { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" };
 
 export async function setTheme(theme) {
-  return safe(async () => {
-    const uid = await requireUserId();
-    if (!isThemeId(theme)) throw fail("Unknown theme");
-    // A manual choice keeps the slideshow running but restarts its countdown from this theme.
-    await query("UPDATE dashboard_settings SET theme=$2, active_custom_theme=CASE WHEN $2='custom' THEN active_custom_theme ELSE NULL END, slideshow_next_at=CASE WHEN slideshow_enabled AND NOT slideshow_paused THEN now() + make_interval(mins => slideshow_interval_min) ELSE slideshow_next_at END, updated_at=now() WHERE user_id=$1", [uid, theme]);
-    (await cookies()).set("theme", theme, COOKIE_OPTS); refresh(); return true;
-  });
+  return safe(async () => applyTheme(await requireUserId(), theme));
 }
 export async function setMotion(motion) {
   return safe(async () => {
