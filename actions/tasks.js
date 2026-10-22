@@ -4,6 +4,7 @@ import { requireUserId } from "@/lib/auth";
 import { safe, fail, logActivity, refresh } from "@/lib/crud";
 import { tasksSvc } from "@/lib/services";
 import { parseQuickTask } from "@/lib/nlp";
+import { resolveProjectRef } from "@/lib/projects-resolve";
 import { isSortMode } from "@/lib/tasksort";
 import { addDays, todayStr } from "@/lib/dates";
 import { getTz } from "@/lib/server-utils";
@@ -20,12 +21,15 @@ export async function quickAddTask(text) {
     const uid = await requireUserId();
     const p = parseQuickTask(String(text || "").slice(0, 400), await getTz());
     if (!p.title) throw fail("Type a task first");
-    let project_id = null;
+    // "@project" must resolve to ONE of the user's projects. Unknown or ambiguous → an error; we never create it unassigned/in a guess.
+    let project_id = null, title = p.title, due_date = p.due_date;
     if (p.projectName) {
-      const pr = await one("SELECT id FROM projects WHERE user_id=$1 AND name ILIKE $2 ORDER BY created_at LIMIT 1", [uid, `%${p.projectName.replace(/[%_\\]/g, "")}%`]);
-      project_id = pr?.id || null;
+      const r = await resolveProjectRef(uid, p.projectName);
+      if (!r.project) throw fail(r.message);
+      project_id = r.project.id;
+      if (r.rest) { const x = parseQuickTask(r.rest, await getTz()); due_date = due_date || x.due_date; if (x.title) title = `${title} ${x.title}`.trim(); }
     }
-    return tasks.create({ title: p.title, due_date: p.due_date, priority: p.priority, tags: p.tags, project_id });
+    return tasks.create({ title, due_date, priority: p.priority, tags: p.tags, project_id });
   });
 }
 

@@ -1,13 +1,14 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, TrendingUp, TrendingDown } from "lucide-react";
+import { Plus, Trash2, Pencil, TrendingUp, TrendingDown } from "lucide-react";
+import Modal from "@/components/ui/Modal";
 import PageHead from "@/components/ui/PageHead";
 import { Field } from "@/components/ui/Fields";
 import { Empty, Progress } from "@/components/ui/misc";
 import { Bars, Line, Donut } from "@/components/charts/Charts";
 import { useAction } from "@/components/ui/useAction";
-import { createExpense, deleteExpense } from "@/actions/expenses";
+import { createExpense, updateExpense, deleteExpense } from "@/actions/expenses";
 import { money as fm } from "@/lib/format";
 import { fmtDate } from "@/lib/dates";
 
@@ -20,6 +21,7 @@ export default function ExpensesClient({ money, stats: s, recent, categories, fi
   const [f, setF] = useState({ amount: "", category: "food", description: "", spent_on: today }); const set = (k) => (e) => setF((x) => ({ ...x, [k]: e.target.value }));
   const [custom, setCustom] = useState({ from: filters.from, to: filters.to }); const [cat, setCat] = useState(filters.category); const [q, setQ] = useState(filters.q);
   const go = (o) => { const p = new URLSearchParams(); const next = { range: filters.preset, ...(filters.preset === "custom" ? { from: filters.from, to: filters.to } : {}), cat, q, ...o }; Object.entries(next).forEach(([k, v]) => v && p.set(k, v)); router.push("/expenses?" + p.toString()); };
+  const [editing, setEditing] = useState(null);
   async function add(e) { e.preventDefault(); if (await run(() => createExpense(f), { ok: "Expense added" })) setF({ ...f, amount: "", description: "" }); }
   const vals = s.daily.map((d) => d.total); let acc = 0; const cum = s.daily.map((d) => ({ value: (acc += d.total) }));
   const long = s.daily.length > 45; const pc = s.previous_period.change_pct;
@@ -67,7 +69,23 @@ export default function ExpensesClient({ money, stats: s, recent, categories, fi
         <Field label="Date"><input className="input" type="date" value={f.spent_on} onChange={set("spent_on")} /></Field></div>
       <datalist id="exp-cats">{[...new Set([...CATS, ...categories])].map((c) => <option key={c} value={c} />)}</datalist>
       <div className="mt-3"><button className="btn btn-primary" disabled={pending}><Plus size={16} /> Add expense</button></div></form>
+    {editing && <ExpenseEditor key={editing.id} exp={editing} cur={cur} categories={[...new Set([...CATS, ...categories])]} onClose={() => setEditing(null)} />}
     <div className="card" style={{ padding: 8 }}><div className="card-title" style={{ padding: "8px 8px 0" }}>Expenses in range</div>{recent.length === 0 ? <Empty title="No expenses" /> : recent.map((r) => <div key={r.id} className="list-row"><span className="small muted" style={{ width: 54 }}>{fmtDate(r.spent_on)}</span><span className="grow trunc">{r.description || r.category} <span className="chip ml-1">{r.category}</span></span><strong>{fm(r.amount, cur)}</strong>
+      <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setEditing(r)} aria-label={`Edit expense: ${r.description || r.category}`}><Pencil size={14} /></button>
       <button className="btn btn-ghost btn-icon btn-sm" onClick={() => confirm("Delete this expense?") && run(() => deleteExpense(r.id), { ok: "Deleted" })} aria-label="Delete expense"><Trash2 size={14} /></button></div>)}</div>
   </>);
+}
+
+function ExpenseEditor({ exp, cur, categories, onClose }) {
+  const { run, pending } = useAction();
+  const [f, setF] = useState({ amount: String(exp.amount), category: exp.category || "other", description: exp.description || "", spent_on: String(exp.spent_on).slice(0, 10) });
+  const set = (k) => (e) => setF((x) => ({ ...x, [k]: e.target.value }));
+  async function save(e) { e.preventDefault(); if (pending) return; if (await run(() => updateExpense(exp.id, f), { ok: "Expense updated" })) onClose(); }
+  return (<Modal open onClose={onClose} title="Edit expense"><form onSubmit={save} className="flex flex-col gap-3">
+    <div className="form-grid two"><Field label={`Amount (${cur})`}><input className="input" inputMode="decimal" required value={f.amount} onChange={set("amount")} autoFocus /></Field>
+      <Field label="Date"><input className="input" type="date" required value={f.spent_on} onChange={set("spent_on")} /></Field>
+      <Field label="Category"><input className="input" list="exp-cats-edit" value={f.category} onChange={set("category")} /></Field>
+      <Field label="Description"><input className="input" value={f.description} onChange={set("description")} maxLength={300} /></Field></div>
+    <datalist id="exp-cats-edit">{categories.map((c) => <option key={c} value={c} />)}</datalist>
+    <div className="flex justify-end gap-2"><button type="button" className="btn" onClick={onClose}>Cancel</button><button className="btn btn-primary" disabled={pending}>{pending ? "Saving…" : "Save"}</button></div></form></Modal>);
 }

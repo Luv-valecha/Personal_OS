@@ -6,7 +6,7 @@ import Modal from "@/components/ui/Modal";
 import { Field } from "@/components/ui/Fields";
 import { Empty } from "@/components/ui/misc";
 import { useAction } from "@/components/ui/useAction";
-import { createFriend, renameFriend, deleteFriend, createSplitEntry, deleteSplitEntry, settleFriend, createEqualSplit } from "@/actions/splits";
+import { createFriend, renameFriend, deleteFriend, createSplitEntry, updateSplitEntry, deleteSplitEntry, settleFriend, createEqualSplit } from "@/actions/splits";
 import { money as fm } from "@/lib/format";
 import { fmtDate, todayStr } from "@/lib/dates";
 
@@ -44,6 +44,7 @@ export default function SplitsClient({ friends, entries, currency: cur, initialF
                 <span className="small muted" style={{ width: 52, paddingTop: 2 }}>{fmtDate(e.entry_date)}</span>
                 <div className="grow" style={{ minWidth: 0 }}><div>{e.reason || <span className="muted">No reason noted</span>}{e.group_ref && <span className="chip ml-2">split</span>}</div><div className="small muted">{KINDS[e.kind][0]}</div></div>
                 <strong style={{ color: e.kind === "lent" || e.kind === "i_paid_them" ? "var(--c-green)" : "var(--c-red)", whiteSpace: "nowrap" }}>{e.kind === "lent" || e.kind === "i_paid_them" ? "+" : "−"}{fm(e.amount, cur)}</strong>
+                <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setForm({ entry: e })} aria-label="Edit entry"><Pencil size={14} /></button>
                 <button className="btn btn-ghost btn-icon btn-sm" onClick={() => confirm("Delete this entry?") && run(() => deleteSplitEntry(e.id), { ok: "Entry deleted" })} aria-label="Delete entry"><Trash2 size={14} /></button></div>))}
           </div>}</div>); })}</div>}
     {form && <EntryForm friends={friends} cur={cur} init={form} onClose={() => setForm(null)} />}
@@ -52,10 +53,12 @@ export default function SplitsClient({ friends, entries, currency: cur, initialF
 }
 
 function EntryForm({ friends, cur, init, onClose }) {
-  const { run, pending } = useAction(); const [f, setF] = useState({ friend: init.friend || friends[0]?.id, kind: init.kind || "lent", amount: "", reason: "", entry_date: todayStr() }); const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }));
-  async function save(e) { e.preventDefault(); if (await run(() => createSplitEntry(f.friend, { kind: f.kind, amount: f.amount, reason: f.reason, entry_date: f.entry_date }), { ok: "Entry saved" })) onClose(); }
-  return (<Modal open onClose={onClose} title="Add entry"><form onSubmit={save} className="flex flex-col gap-3">
-    <Field label="Friend"><select className="select" value={f.friend} onChange={set("friend")}>{friends.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</select></Field>
+  const { run, pending } = useAction(); const ed = init.entry; const [f, setF] = useState({ friend: ed?.friend_id || init.friend || friends[0]?.id, kind: ed?.kind || init.kind || "lent", amount: ed ? String(ed.amount) : "", reason: ed?.reason || "", entry_date: ed ? String(ed.entry_date).slice(0, 10) : todayStr() }); const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }));
+  async function save(e) { e.preventDefault(); if (pending) return;
+    if (ed) { if (await run(() => updateSplitEntry(ed.id, { kind: f.kind, amount: f.amount, reason: f.reason, entry_date: f.entry_date }), { ok: "Entry updated" })) onClose(); return; }
+    if (await run(() => createSplitEntry(f.friend, { kind: f.kind, amount: f.amount, reason: f.reason, entry_date: f.entry_date }), { ok: "Entry saved" })) onClose(); }
+  return (<Modal open onClose={onClose} title={ed ? "Edit entry" : "Add entry"}><form onSubmit={save} className="flex flex-col gap-3">
+    <Field label="Friend"><select className="select" value={f.friend} onChange={set("friend")} disabled={!!ed}>{friends.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</select></Field>
     <fieldset style={{ border: 0, padding: 0, margin: 0 }}><legend className="label">What happened</legend><div className="flex flex-col gap-1">{Object.entries(KINDS).map(([k, [l]]) => <label key={k} className="flex items-center gap-2 small" style={{ cursor: "pointer" }}><input type="radio" name="kind" checked={f.kind === k} onChange={() => setF((s) => ({ ...s, kind: k }))} />{l}</label>)}</div></fieldset>
     <div className="form-grid two"><Field label={`Amount (${cur})`}><input className="input" inputMode="decimal" required value={f.amount} onChange={set("amount")} autoFocus /></Field><Field label="Date"><input type="date" className="input" value={f.entry_date} onChange={set("entry_date")} /></Field></div>
     <Field label="Why? (details)"><input className="input" value={f.reason} onChange={set("reason")} placeholder="Dinner at Pizza Hut, cab to airport…" maxLength={300} /></Field>

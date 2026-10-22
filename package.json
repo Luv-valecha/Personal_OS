@@ -15,7 +15,7 @@
     "icons": "node scripts/make-icons.js",
     "test": "node --experimental-default-type=module --import ./tests/register.mjs --test tests/unit/*.test.mjs",
     "mock:gemini": "node tests/mock-gemini.mjs",
-    "test:db": "node tests/integration/migration-006.test.mjs"
+    "test:db": "node tests/integration/migration-006.test.mjs && node --experimental-default-type=module --import ./tests/register.mjs tests/integration/task-filter.test.mjs"
   },
   "engines": {
     "node": ">=20"
