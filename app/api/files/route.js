@@ -1,3 +1,4 @@
+import { cache } from "@/lib/cache/index";
 import { NextResponse } from "next/server";
 import { requireUserId } from "@/lib/auth";
 import { one } from "@/lib/db";
@@ -22,6 +23,7 @@ export async function POST(req) {
     const row = await one("INSERT INTO files(user_id,project_id,name,mime_type,size_bytes,tags,data) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id,name",
       [uid, project, name, (file.type || "application/octet-stream").slice(0, 120), buf.length, tags, buf]);
     await logActivity(uid, "file", "added", name);
+    await cache.bump(uid);   // invalidate this user's cached answers (never throws)
     return NextResponse.json({ ok: true, id: row.id });
   } catch (e) {
     if (e.message === "UNAUTHENTICATED") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

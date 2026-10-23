@@ -65,6 +65,14 @@ New original **dark-fire flame logo** (`scripts/logo.js` → PNG/SVG icons via `
 | `GEMINI_MODEL` | no | Model id (default `gemini-2.5-flash`). |
 | `GEMINI_API_BASE` | no | Testing/proxy override of the API URL. |
 | `GEMINI_TIMEOUT_MS` | no | Request timeout (default 20000). |
+### Environment variables (new in V4)
+| Variable | Required | Purpose |
+|---|---|---|
+| `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | no | Enables the Redis cache for repeated JARVIS answers (server-only). Without them the cache is off. See `REDIS_SETUP.md`. |
+| `CACHE_DISABLED` | no | `1` = cache off (kill switch). |
+| `CACHE_TIMEOUT_MS`, `CACHE_BREAKER_BASE_MS`, `CACHE_DEBUG` | no | Tuning/diagnostics, see `.env.example`. |
+A complete list with placeholders is in `.env.example`.
+
 All V2 variables are unchanged (`DATABASE_URL`, `AUTH_SECRET`, `NEXT_PUBLIC_APP_URL`, `ALLOW_REGISTRATION`, `MAX_UPLOAD_MB`).
 
 ### Deploy (existing Vercel + Neon)

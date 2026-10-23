@@ -4,7 +4,10 @@
 import http from "node:http";
 const call = (name, args) => ({ candidates: [{ content: { role: "model", parts: [{ functionCall: { name, args } }] } }] });
 const text = (t) => ({ candidates: [{ content: { role: "model", parts: [{ text: t }] } }] });
+let calls = 0;   // number of generateContent calls (lets tests prove a cached answer skipped the AI)
 http.createServer((req, res) => {
+  if (req.url === "/__count") { res.writeHead(200, { "content-type": "application/json" }); return res.end(JSON.stringify({ n: calls })); }
+  calls++;
   let body = ""; req.on("data", (c) => (body += c)); req.on("end", async () => {
     const send = (code, obj) => { res.writeHead(code, { "content-type": "application/json" }); res.end(JSON.stringify(obj)); };
     if (req.headers["x-goog-api-key"] === "badkey") return send(400, { error: { message: "API key not valid. Please pass a valid API key." } });
@@ -32,4 +35,4 @@ http.createServer((req, res) => {
     if (lastText.includes("overdue ideas")) return send(200, call("list_ideas", { scope: "unconverted" }));
     return send(200, text("I can help with tasks, ideas, expenses, deadlines, notes, projects and focus."));
   });
-}).listen(4010, () => console.log("mock Gemini on :4010"));
+}).listen(Number(process.env.GEMINI_PORT) || 4010, () => console.log("mock Gemini up"));

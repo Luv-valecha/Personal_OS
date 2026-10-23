@@ -15,7 +15,9 @@
     "icons": "node scripts/make-icons.js",
     "test": "node --experimental-default-type=module --import ./tests/register.mjs --test tests/unit/*.test.mjs",
     "mock:gemini": "node tests/mock-gemini.mjs",
-    "test:db": "node tests/integration/migration-006.test.mjs && node tests/integration/migration-008.test.mjs && node --experimental-default-type=module --import ./tests/register.mjs tests/integration/checklists-service.test.mjs && node --experimental-default-type=module --import ./tests/register.mjs tests/integration/task-filter.test.mjs"
+    "test:db": "node tests/integration/migration-006.test.mjs && node tests/integration/migration-008.test.mjs && node --experimental-default-type=module --import ./tests/register.mjs tests/integration/checklists-service.test.mjs && node --experimental-default-type=module --import ./tests/register.mjs tests/integration/task-filter.test.mjs && node --experimental-default-type=module --import ./tests/register.mjs tests/integration/dashboard-cache.test.mjs",
+    "cache:bench": "node --experimental-default-type=module --import ./tests/register.mjs scripts/cache-bench.mjs",
+    "test:e2e:cache": "node tests/e2e/cache_http.mjs"
   },
   "engines": {
     "node": ">=20"
