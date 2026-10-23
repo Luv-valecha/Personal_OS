@@ -39,6 +39,13 @@ try {
   j = await J(cc, "Change my theme to Neon Pink Glitter"); ok("theme: unknown theme rejected, setting unchanged", j.type === "error" && (await theme(C)) === "dark" && !(j.clientActions || []).length, JSON.stringify(j));
   j = await J(cc, "Switch to man theme"); ok("theme: ambiguous name → clarify, unchanged", j.type === "clarify" && (await theme(C)) === "dark", JSON.stringify(j));
   j = await J(cb, "Switch to Batman theme"); ok("theme: affects only the requesting user", (await theme(B)) === "batman" && (await theme(C)) === "dark" && (await theme(A)) === "dark", `${await theme(B)}/${await theme(C)}`);
+  j = await J(cc, "Switch to Hell theme"); ok("theme: 'Switch to Hell theme' is persisted and sent to the client", (await theme(C)) === "hell" && j.clientActions?.some((a) => a.type === "theme" && a.theme === "hell"), JSON.stringify(j).slice(0, 200));
+  const dashHtml = await (await fetch(BASE + "/dashboard", { headers: { cookie: cc + "; theme=hell" } })).text(); ok("theme: server renders <html data-theme=\"hell\"> after refresh (persistence)", /data-theme="hell"/.test(dashHtml));
+  const setHtml = await (await fetch(BASE + "/settings", { headers: { cookie: cc } })).text(); ok("theme: Hell is listed in the Settings theme picker", /Ember, ash, molten red/.test(setHtml));
+  await q("UPDATE dashboard_settings SET layout='[]' WHERE user_id=$1", [C]);
+  const dashNew = await (await fetch(BASE + "/dashboard", { headers: { cookie: cc } })).text(); ok("widgets: new V4 widgets are hidden by default (not rendered for a fresh layout)", !/Open bugs/.test(dashNew) && !/No checklists/.test(dashNew));
+  await q("UPDATE dashboard_settings SET layout=$2 WHERE user_id=$1", [C, JSON.stringify([{ id: "bugs", visible: true, size: "md" }, { id: "checklists", visible: true, size: "md" }, { id: "ideas", visible: true, size: "md" }])]);
+  const dashOn = await (await fetch(BASE + "/dashboard", { headers: { cookie: cc } })).text(); ok("widgets: enabling them shows the new widgets (and older saved layouts still render)", /Open bugs/.test(dashOn) && /No checklists/.test(dashOn) && /No active ideas/.test(dashOn));
 } catch (e) { fail++; console.log("ERROR", e); } finally {
   await q("DELETE FROM users WHERE id = ANY($1)", [[A, B, C]]); await db.end(); console.log(`\n${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
 }

@@ -55,5 +55,12 @@
   --shadow-card: inset 0 1px 0 rgb(185 195 202 / .07), inset 0 -1px 0 rgb(0 0 0 / .4), 0 6px 18px rgb(0 0 0 / .35);
   --bg-effect: repeating-linear-gradient(90deg, rgb(185 195 202 / .025) 0 1px, transparent 1px 3px), radial-gradient(50% 30% at 50% 0%, rgb(63 148 96 / .12), transparent); color-scheme: dark; }
 
+/* ---------- Atmosphere ---------- */
+/* Hell: warm near-black + ember orange / molten red. Glow lives only in the background wash and a hairline card rim (no glowing text);
+   the one animation is the existing slow nav-indicator pulse, which the global Reduced/Off motion setting and prefers-reduced-motion already disable. */
+[data-theme="hell"] { --c-bg:#0a0606; --c-surface:#150b09; --c-border:#3b1b14; --c-text:#f6ece6; --c-primary:#ff5a1f; --c-primary-fg:#140500; --c-secondary:#e5484d; --c-accent:#ffb03a; --radius:12px; --fx-anim: fx-pulse; --wipe-anim: wipe-slide-up;
+  --shadow-card: inset 0 1px 0 rgb(255 140 80 / .06), 0 8px 24px rgb(0 0 0 / .5), 0 0 0 1px rgb(255 90 31 / .05);
+  --bg-effect: radial-gradient(60% 32% at 50% -6%, rgb(229 72 77 / .20), transparent 72%), radial-gradient(38% 24% at 100% 100%, rgb(255 90 31 / .10), transparent 72%), linear-gradient(180deg, rgb(110 14 8 / .20), transparent 280px); color-scheme: dark; }
+
 /* custom themes set --c-* inline on <html data-theme="custom"> (see lib/themes.js) */
 [data-theme="custom"] { color-scheme: dark; --c-primary-fg: #fff; }

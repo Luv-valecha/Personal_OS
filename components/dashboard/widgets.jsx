@@ -226,4 +226,26 @@ export function WeatherWidget({ ctx }) {
     {state.status === "error" && <div className="small muted">{state.msg} <button className="btn btn-sm ml-1" onClick={() => setTick((t) => t + 1)}>Retry</button></div>}
     {state.status === "ok" && <div className="flex items-center gap-3"><CloudSun size={30} className="muted" /><div><div className="stat">{state.temp}°C</div><div className="sub">{WMO[state.code] || "—"} · {state.lo}°/{state.hi}° · {state.wind} km/h</div><div className="sub flex items-center gap-1"><MapPin size={11} />{state.name}</div></div></div>}</>);
 }
-export const WIDGET_COMPONENTS = { splits: SplitsWidget, overview: OverviewWidget, priority: PriorityCard, timeline: TodayTimeline, quicklinks: QuickLinksWidget, tasks: TasksWidget, calendar: CalendarWidget, deadlines: DeadlinesWidget, money: MoneyWidget, projects: ProjectsWidget, notes: NotesWidget, focus: FocusWidget, weather: WeatherWidget, activity: ActivityWidget };
+export function IdeasWidget({ data }) {
+  const r = data.ideas || [];
+  return (<><Title href="/ideas">Ideas{r[0]?.total > 5 ? ` · ${r[0].total}` : ""}</Title>
+    {r.length === 0 ? <Empty title="No active ideas" hint="Capture one from the Ideas page." /> : r.map((x) => (
+      <Link key={x.id} href={`/ideas?open=${x.id}`} className="list-row"><span className="grow trunc">{x.title}</span><span className="small muted">{x.project_name || x.status}</span></Link>))}</>);
+}
+export function BugsWidget({ data }) {
+  const r = data.bugs || [];
+  return (<><Title href="/projects">Open bugs{r[0]?.total > 5 ? ` · ${r[0].total}` : ""}</Title>
+    {r.length === 0 ? <Empty title="No open bugs" hint="Log bugs inside a project." /> : r.map((x) => (
+      <Link key={x.id} href="/projects" className="list-row"><span className="grow trunc">{x.title}</span>{x.priority === "high" && <span className="chip">high</span>}<span className="small muted trunc" style={{ maxWidth: 90 }}>{x.project_name}</span></Link>))}</>);
+}
+export function ChecklistsWidget({ data }) {
+  const r = data.checklists || [];
+  return (<><Title href="/checklists">Checklists</Title>
+    {r.length === 0 ? <Empty title="No checklists" hint="Create one on the Checklists page." /> : r.map((x) => {
+      const pct = x.total ? Math.round((x.done / x.total) * 100) : 0;
+      return (<Link key={x.id} href="/checklists" className="list-row" style={{ flexDirection: "column", alignItems: "stretch", gap: 4 }}>
+        <span className="flex justify-between gap-2"><span className="trunc">{x.title}</span><span className="small muted">{x.done}/{x.total}</span></span>
+        <div className="progress" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`${x.title} progress`}><i style={{ width: `${pct}%` }} /></div></Link>);
+    })}</>);
+}
+export const WIDGET_COMPONENTS = { ideas: IdeasWidget, bugs: BugsWidget, checklists: ChecklistsWidget, splits: SplitsWidget, overview: OverviewWidget, priority: PriorityCard, timeline: TodayTimeline, quicklinks: QuickLinksWidget, tasks: TasksWidget, calendar: CalendarWidget, deadlines: DeadlinesWidget, money: MoneyWidget, projects: ProjectsWidget, notes: NotesWidget, focus: FocusWidget, weather: WeatherWidget, activity: ActivityWidget };

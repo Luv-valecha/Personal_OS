@@ -53,3 +53,30 @@ test("oversized payload is skipped (not stored) but still returned", async () =>
   await load(A, TODAY, TZ, ALL); assert.ok(c.snapshot().stores + c.snapshot().skipped >= 1);
   await admin.query("DELETE FROM tasks WHERE title LIKE 'xxxx%'");
 });
+
+// ── widget data + "hidden widgets load nothing" ──
+const P1 = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", PB = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+test("ideas / bugs / checklists widgets return the right, user-scoped data", async () => {
+  await admin.query(`INSERT INTO projects(id,user_id,name) VALUES ('${P1}','${A}','Lucifer OS'),('${PB}','${B}','Other');
+    INSERT INTO ideas(user_id,title,status) VALUES ('${A}','idea-inbox','inbox'),('${A}','idea-done','completed'),('${B}','B-idea','inbox');
+    INSERT INTO bugs(user_id,project_id,title,priority,status) VALUES ('${A}','${P1}','bug-high','high','open'),('${A}','${P1}','bug-low','low','in_progress'),('${A}','${P1}','bug-closed','high','resolved'),('${B}','${PB}','B-bug','high','open');`);
+  const cl = (await admin.query(`INSERT INTO checklists(user_id,title) VALUES ('${A}','Packing') RETURNING id`)).rows[0].id;
+  await admin.query(`INSERT INTO checklist_items(checklist_id,user_id,text,done) VALUES ('${cl}','${A}','a',true),('${cl}','${A}','b',false),('${cl}','${A}','c',false)`);
+  const d = await Q.getDashboard(A, TODAY, TZ, new Set(["ideas", "bugs", "checklists"]));
+  assert.deepEqual(d.ideas.map((i) => i.title), ["idea-inbox"]);                                   // completed idea excluded, B's excluded
+  assert.deepEqual(d.bugs.map((b) => b.title), ["bug-high", "bug-low"]); assert.equal(d.bugs[0].total, 2);   // resolved excluded, high first
+  assert.deepEqual([d.checklists[0].title, d.checklists[0].done, d.checklists[0].total], ["Packing", 1, 3]);
+  const b = await Q.getDashboard(B, TODAY, TZ, new Set(["ideas", "bugs", "checklists"])); assert.deepEqual([b.ideas.map((i) => i.title), b.bugs.map((x) => x.title), b.checklists], [["B-idea"], ["B-bug"], []]);
+});
+test("HIDDEN widgets run no database queries; visible ones run exactly their own", async () => {
+  const orig = db.query.bind(db); let n = 0; db.query = (...a) => { n++; return orig(...a); };
+  try {
+    await Q.getDashboard(A, TODAY, TZ, new Set()); const none = n; n = 0;
+    await Q.getDashboard(A, TODAY, TZ, new Set(["ideas"])); const one = n; n = 0;
+    await Q.getDashboard(A, TODAY, TZ, new Set(["ideas", "bugs", "checklists"])); const three = n;
+    assert.equal(none, 0, "nothing visible → zero queries"); assert.equal(one, 1); assert.equal(three, 3);
+  } finally { db.query = orig; }
+});
+test("a widget that errors cannot be hidden-by-accident: payload only contains keys for visible widgets", async () => {
+  const d = await Q.getDashboard(A, TODAY, TZ, new Set(["bugs"])); assert.deepEqual(Object.keys(d), ["bugs"]);
+});
