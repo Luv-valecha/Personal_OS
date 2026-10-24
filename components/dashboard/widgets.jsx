@@ -2,7 +2,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CloudSun, MapPin } from "lucide-react";
+import { CloudSun, MapPin, Play, Pause, SkipBack, SkipForward } from "lucide-react";
+import { useMusic } from "@/components/music/MusicProvider";
+import { planPlayback, playAction, resolveSource, sourceKey, MUSIC_WIDGET_LIMIT } from "@/lib/musicplan";
 import TaskRow from "@/components/tasks/TaskRow";
 import SortableTaskList from "@/components/tasks/SortableTaskList";
 import SortSelect from "@/components/tasks/SortSelect";
@@ -248,4 +250,39 @@ export function ChecklistsWidget({ data }) {
         <div className="progress" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`${x.title} progress`}><i style={{ width: `${pct}%` }} /></div></Link>);
     })}</>);
 }
-export const WIDGET_COMPONENTS = { ideas: IdeasWidget, bugs: BugsWidget, checklists: ChecklistsWidget, splits: SplitsWidget, overview: OverviewWidget, priority: PriorityCard, timeline: TodayTimeline, quicklinks: QuickLinksWidget, tasks: TasksWidget, calendar: CalendarWidget, deadlines: DeadlinesWidget, money: MoneyWidget, projects: ProjectsWidget, notes: NotesWidget, focus: FocusWidget, weather: WeatherWidget, activity: ActivityWidget };
+export function MusicWidget({ data }) {
+  const m = useMusic() || {};
+  const d = data.music || { playlists: [], tracks: [], lists: {} };
+  const [sel, setSel] = useState("all"); const [note, setNote] = useState(""); const [active, setActive] = useState(null); const [busy, setBusy] = useState(false);
+  useEffect(() => { try { setSel(localStorage.getItem("dash.musicSource") || "all"); } catch {} }, []);          // restore the choice — never autoplays
+  useEffect(() => { if (d.tracks.length) m.register?.(d.tracks); }, [data.music]);                                   // eslint-disable-line  (names/artists for the mini player)
+  const src = resolveSource(sel, d.playlists);
+  const idsFor = (s) => (s === "all" ? d.tracks.map((t) => t.id) : d.lists[s] || []);
+
+  async function start(s) {
+    if (busy || !m.playTracks) return; setBusy(true);
+    try {
+      const all = idsFor(s); const have = all.length ? await m.refreshLocal(all) : [];
+      const plan = planPlayback(all, have); setNote(plan.note);
+      if (plan.ids.length) { setActive({ key: sourceKey(plan.ids) }); m.playTracks(plan.ids, 0); }
+    } finally { setBusy(false); }
+  }
+  const onPlay = () => (playAction({ active, queue: m.queue, current: m.current }) === "toggle" ? m.toggle() : start(src));
+  const pick = (v) => { setSel(v); try { localStorage.setItem("dash.musicSource", v); } catch {} start(v); };          // choosing a list starts it (a user gesture)
+  const mine = playAction({ active, queue: m.queue || [], current: m.current }) === "toggle";
+  const cur = mine && m.current ? m.meta?.[m.current] : null; const playing = mine && m.playing;
+  const label = src === "all" ? (d.tracks.length >= MUSIC_WIDGET_LIMIT ? `All songs (first ${MUSIC_WIDGET_LIMIT})` : `All songs (${d.tracks.length})`) : null;
+  return (<><Title href="/music" link="Library">Music</Title>
+    {d.tracks.length === 0 ? <Empty title="No songs yet" hint="Add songs on the Music page." /> : (<>
+      <select className="select" value={src} onChange={(e) => pick(e.target.value)} aria-label="Music source: all songs or a playlist" disabled={busy}>
+        <option value="all">{label}</option>
+        {d.playlists.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.n})</option>)}
+      </select>
+      <div className="flex items-center gap-2" style={{ marginTop: 10 }}>
+        <button className="btn btn-icon" onClick={() => m.prev?.()} disabled={!mine} aria-label="Previous track"><SkipBack size={16} /></button>
+        <button className="btn btn-primary" style={{ flex: 1 }} onClick={onPlay} disabled={busy} aria-label={playing ? "Pause" : "Play"}>{playing ? <><Pause size={16} /> Pause</> : <><Play size={16} /> Play</>}</button>
+        <button className="btn btn-icon" onClick={() => m.next?.()} disabled={!mine} aria-label="Next track"><SkipForward size={16} /></button>
+      </div>
+      <div className="small muted trunc" style={{ marginTop: 8, minHeight: 18 }} aria-live="polite">{cur ? `${cur.title}${cur.artist ? ` — ${cur.artist}` : ""}` : note}</div></>)}</>);
+}
+export const WIDGET_COMPONENTS = { music: MusicWidget, ideas: IdeasWidget, bugs: BugsWidget, checklists: ChecklistsWidget, splits: SplitsWidget, overview: OverviewWidget, priority: PriorityCard, timeline: TodayTimeline, quicklinks: QuickLinksWidget, tasks: TasksWidget, calendar: CalendarWidget, deadlines: DeadlinesWidget, money: MoneyWidget, projects: ProjectsWidget, notes: NotesWidget, focus: FocusWidget, weather: WeatherWidget, activity: ActivityWidget };

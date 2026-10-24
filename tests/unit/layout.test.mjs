@@ -3,7 +3,7 @@ import { WIDGETS, DEFAULT_LAYOUT, normalizeLayout } from "@/lib/layout";
 const V3 = ["overview", "priority", "tasks", "timeline", "deadlines", "calendar", "quicklinks", "focus", "money", "splits", "projects", "notes", "weather", "activity"];
 test("new users: V3 widgets visible as before; the 3 new V4 widgets exist but start hidden (dashboard not crowded)", () => {
   const n = normalizeLayout([]); assert.deepEqual(n.filter((w) => w.visible).map((w) => w.id), V3);
-  for (const id of ["ideas", "bugs", "checklists"]) assert.equal(n.find((w) => w.id === id).visible, false, id);
+  for (const id of ["ideas", "bugs", "checklists", "music"]) assert.equal(n.find((w) => w.id === id).visible, false, id);
   assert.equal(n.length, Object.keys(WIDGETS).length);
 });
 test("an existing user's saved V3 layout keeps its order, sizes and hidden choices; new widgets are added HIDDEN", () => {
@@ -12,7 +12,7 @@ test("an existing user's saved V3 layout keeps its order, sizes and hidden choic
   const v3Part = n.filter((w) => V3.includes(w.id));
   assert.deepEqual(v3Part, custom, "all 14 existing widgets: same order, visibility and size");
   assert.ok(!n.some((w) => w.id === "gone-widget"));
-  for (const id of ["ideas", "bugs", "checklists"]) assert.equal(n.find((w) => w.id === id).visible, false, id);
+  for (const id of ["ideas", "bugs", "checklists", "music"]) assert.equal(n.find((w) => w.id === id).visible, false, id);
   assert.equal(new Set(n.map((w) => w.id)).size, n.length);
 });
 test("a user who already enabled a new widget keeps it enabled", () => { const n = normalizeLayout([{ id: "bugs", visible: true, size: "lg" }]); assert.deepEqual(n.find((w) => w.id === "bugs"), { id: "bugs", visible: true, size: "lg" }); });

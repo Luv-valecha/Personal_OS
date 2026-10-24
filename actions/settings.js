@@ -4,7 +4,7 @@ import { query, one } from "@/lib/db";
 import { requireUserId } from "@/lib/auth";
 import { safe, fail, refresh } from "@/lib/crud";
 import { customThemeSchema } from "@/lib/validation";
-import { isThemeId, MOTION } from "@/lib/themes";
+import { isThemeId, MOTION, GLASS } from "@/lib/themes";
 import { applyTheme } from "@/lib/theme-service";
 import { normalizeLayout } from "@/lib/layout";
 import { z } from "zod";
@@ -19,6 +19,13 @@ export async function setMotion(motion) {
     const uid = await requireUserId(); if (!MOTION.includes(motion)) throw fail("Invalid animation setting");
     await query("UPDATE dashboard_settings SET motion=$2, updated_at=now() WHERE user_id=$1", [uid, motion]);
     (await cookies()).set("motion", motion, COOKIE_OPTS); refresh(); return true;
+  });
+}
+export async function setGlass(glass) {
+  return safe(async () => {
+    const uid = await requireUserId(); if (!GLASS.includes(glass)) throw fail("Invalid glass setting");
+    await query("UPDATE dashboard_settings SET glass=$2, updated_at=now() WHERE user_id=$1", [uid, glass]);
+    (await cookies()).set("glass", glass, COOKIE_OPTS); refresh(); return true;
   });
 }
 const prefs = z.object({

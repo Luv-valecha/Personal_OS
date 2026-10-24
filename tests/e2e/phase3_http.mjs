@@ -46,6 +46,14 @@ try {
   const dashNew = await (await fetch(BASE + "/dashboard", { headers: { cookie: cc } })).text(); ok("widgets: new V4 widgets are hidden by default (not rendered for a fresh layout)", !/Open bugs/.test(dashNew) && !/No checklists/.test(dashNew));
   await q("UPDATE dashboard_settings SET layout=$2 WHERE user_id=$1", [C, JSON.stringify([{ id: "bugs", visible: true, size: "md" }, { id: "checklists", visible: true, size: "md" }, { id: "ideas", visible: true, size: "md" }])]);
   const dashOn = await (await fetch(BASE + "/dashboard", { headers: { cookie: cc } })).text(); ok("widgets: enabling them shows the new widgets (and older saved layouts still render)", /Open bugs/.test(dashOn) && /No checklists/.test(dashOn) && /No active ideas/.test(dashOn));
+  await q("UPDATE dashboard_settings SET glass='strong' WHERE user_id=$1", [C]);
+  ok("glass: server renders data-glass from the saved setting", /data-glass="strong"/.test(await (await fetch(BASE + "/dashboard", { headers: { cookie: cc } })).text()));
+  const lo = await (await fetch(BASE + "/login", { headers: { cookie: 'glass=evil"><script>alert(1)</script>' } })).text(); ok("glass: a forged cookie can't inject anything (falls back to off)", /data-glass="off"/.test(lo) && !lo.includes("<script>alert(1)"), "");
+  await q("UPDATE dashboard_settings SET glass='off' WHERE user_id=$1", [C]); ok("glass: off by default after reset", /data-glass="off"/.test(await (await fetch(BASE + "/dashboard", { headers: { cookie: cc } })).text()));
+  const tid = (await q("INSERT INTO music_tracks(user_id,title,file_name,fingerprint) VALUES ($1,'Song One','a.mp3','a.mp3|1') RETURNING id", [C]))[0].id; const plid = (await q("INSERT INTO music_playlists(user_id,name) VALUES ($1,'Gym mix') RETURNING id", [C]))[0].id; await q("INSERT INTO music_playlist_tracks(playlist_id,track_id,user_id,position) VALUES ($1,$2,$3,1)", [plid, tid, C]);
+  await q("UPDATE dashboard_settings SET layout=$2 WHERE user_id=$1", [C, JSON.stringify([{ id: "music", visible: true, size: "md" }])]);
+  const mh = (await (await fetch(BASE + "/dashboard", { headers: { cookie: cc } })).text()).replace(/<!-- -->/g, "");   /* React text-node separators */ ok("music widget: renders a Play control, an 'All songs' option and the user's playlist", /Music source: all songs or a playlist/.test(mh) && /All songs \(1\)/.test(mh) && /Gym mix \(1\)/.test(mh) && /aria-label="Play"/.test(mh), "");
+  const mb = await (await fetch(BASE + "/dashboard", { headers: { cookie: cb } })).text(); ok("music widget: another user never sees this playlist", !mb.includes("Gym mix"));
 } catch (e) { fail++; console.log("ERROR", e); } finally {
   await q("DELETE FROM users WHERE id = ANY($1)", [[A, B, C]]); await db.end(); console.log(`\n${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
 }

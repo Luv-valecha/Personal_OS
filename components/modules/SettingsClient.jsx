@@ -10,11 +10,11 @@ import { saveLayout } from "@/actions/settings";
 import { DEFAULT_LAYOUT } from "@/lib/layout";
 import Link from "next/link";
 import { useAction } from "@/components/ui/useAction";
-import { updateDisplayName, updatePreferences, setMotion } from "@/actions/settings";
+import { updateDisplayName, updatePreferences, setMotion, setGlass } from "@/actions/settings";
 import { logoutAction } from "@/actions/auth";
 
 export default function SettingsClient({ user, settings, customThemes, quickLinks }) {
-  const { run, pending } = useAction(); const [name, setName] = useState(user.display_name); const [motion, setMo] = useState(settings.motion);
+  const { run, pending } = useAction(); const [name, setName] = useState(user.display_name); const [motion, setMo] = useState(settings.motion); const [glass, setGl] = useState(settings.glass || "off");
   const [p, setP] = useState({ weather_city: settings.weather_city, monthly_budget: settings.monthly_budget || "", currency: settings.currency });
   const [perm, setPerm] = useState(typeof Notification !== "undefined" ? Notification.permission : "unsupported");
   return (<>
@@ -27,6 +27,8 @@ export default function SettingsClient({ user, settings, customThemes, quickLink
       <section className="card" id="themes"><div className="card-title">Appearance</div>
         <div className="mb-5"><span className="label">Animations</span><Segmented value={motion} onChange={async (v) => { setMo(v); document.documentElement.setAttribute("data-motion", v); await run(() => setMotion(v)); }} options={[{ value: "full", label: "Full" }, { value: "reduced", label: "Reduced" }, { value: "off", label: "Off" }]} label="Animations" />
           <p className="small muted mt-1">Your device&apos;s “reduce motion” setting is always respected.</p></div>
+        <div className="mb-5"><span className="label">Glass widgets</span><Segmented value={glass} onChange={async (v) => { const prev = glass; setGl(v); document.documentElement.setAttribute("data-glass", v); if (!(await run(() => setGlass(v)))) { setGl(prev); document.documentElement.setAttribute("data-glass", prev); } }} options={[{ value: "off", label: "Off" }, { value: "soft", label: "Soft" }, { value: "strong", label: "Strong" }]} label="Glass widgets" />
+          <p className="small muted mt-1">Frosted, translucent dashboard cards. Looks best on themes with a background glow (e.g. Hell). Turns itself off if your device asks for reduced transparency.</p></div>
         <ThemeSelector current={settings.theme} customThemes={customThemes} activeCustom={settings.active_custom_theme} /></section>
       <ThemeSlideshowSettings customThemes={customThemes} />
       <section className="card" id="dashboard"><div className="card-title">Dashboard</div>

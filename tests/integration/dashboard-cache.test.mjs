@@ -80,3 +80,40 @@ test("HIDDEN widgets run no database queries; visible ones run exactly their own
 test("a widget that errors cannot be hidden-by-accident: payload only contains keys for visible widgets", async () => {
   const d = await Q.getDashboard(A, TODAY, TZ, new Set(["bugs"])); assert.deepEqual(Object.keys(d), ["bugs"]);
 });
+
+// ── music widget data ──
+const C = "33333333-3333-3333-3333-333333333333";
+test("music widget data: playlists in saved order, counts, light track metadata, user-scoped, nothing loaded when hidden", async () => {
+  await admin.query(`INSERT INTO users(id,email,password_hash) VALUES ('${C}','c@x','x')`);
+  const mk = async (u, title) => (await admin.query("INSERT INTO music_tracks(user_id,title,artist,file_name,fingerprint) VALUES ($1,$2,'art',$2,$2||'|1') RETURNING id", [u, title])).rows[0].id;
+  const [t1, t2, t3] = [await mk(A, "Alpha"), await mk(A, "Beta"), await mk(A, "Gamma")]; const tb = await mk(B, "B-song");
+  const pl = (await admin.query("INSERT INTO music_playlists(user_id,name) VALUES ($1,'Focus') RETURNING id", [A])).rows[0].id; const plb = (await admin.query("INSERT INTO music_playlists(user_id,name) VALUES ($1,'B-list') RETURNING id", [B])).rows[0].id;
+  await admin.query("INSERT INTO music_playlist_tracks(playlist_id,track_id,user_id,position) VALUES ($1,$2,$3,2),($1,$4,$3,1)", [pl, t1, A, t3]);     // saved order: Gamma (1) then Alpha (2)
+  await admin.query("INSERT INTO music_playlist_tracks(playlist_id,track_id,user_id,position) VALUES ($1,$2,$3,1)", [plb, tb, B]);
+  const d = (await Q.getDashboard(A, TODAY, TZ, new Set(["music"]))).music;
+  assert.deepEqual(d.tracks.map((t) => t.title), ["Alpha", "Beta", "Gamma"]);                    // library, alphabetical
+  assert.deepEqual(d.playlists.map((p) => [p.name, p.n]), [["Focus", 2]]);
+  assert.deepEqual(d.lists[pl], [t3, t1], "playlist keeps its saved order");
+  assert.ok(!JSON.stringify(d).includes("B-song") && !JSON.stringify(d).includes("B-list") && !d.lists[plb], "never another user's music");
+  assert.deepEqual(Object.keys(d.tracks[0]).sort(), ["artist", "duration_sec", "id", "title"], "only light metadata — no file names/fingerprints");
+  const orig = db.query.bind(db); let n = 0; db.query = (...a) => { n++; return orig(...a); };
+  try { await Q.getDashboard(A, TODAY, TZ, new Set(["tasks"])); assert.ok(n >= 1); n = 0; await Q.getDashboard(A, TODAY, TZ, new Set()); assert.equal(n, 0); } finally { db.query = orig; }
+});
+test("music widget payload is bounded (library cap)", async () => {
+  await admin.query("INSERT INTO music_tracks(user_id,title,file_name,fingerprint) SELECT $1, 'T' || g, 'f' || g, 'f' || g || '|1' FROM generate_series(1, 830) g", [C]);
+  const d = (await Q.getDashboard(C, TODAY, TZ, new Set(["music"]))).music; assert.equal(d.tracks.length, 800);
+});
+
+// ── glass widgets setting ──
+test("glass setting: default off; valid values persist; everything else (incl. injection) is rejected and changes nothing", async () => {
+  const { SignJWT } = await import("jose"); process.env.AUTH_SECRET = process.env.AUTH_SECRET || "x".repeat(40);
+  process.env.TEST_SESSION = await new SignJWT({}).setProtectedHeader({ alg: "HS256" }).setSubject(A).setIssuedAt().setExpirationTime("1h").sign(new TextEncoder().encode(process.env.AUTH_SECRET));
+  const { getSettings } = await import("@/lib/server-utils"); const { setGlass } = await import("@/actions/settings");
+  assert.equal((await getSettings(A)).glass, "off");
+  for (const v of ["soft", "strong", "off"]) { const r = await setGlass(v); assert.equal(r.ok, true, v); assert.equal((await getSettings(A)).glass, v); }
+  await setGlass("strong");
+  for (const bad of ["ultra", "STRONG", "", null, undefined, 12, "soft'; DROP TABLE users;--", "blur(99px)", ["soft"]]) { const r = await setGlass(bad); assert.equal(r.ok, false, String(bad)); assert.equal((await getSettings(A)).glass, "strong", "unchanged after " + String(bad)); }
+  assert.equal((await admin.query("SELECT count(*)::int n FROM users")).rows[0].n >= 3, true, "users table intact");
+  assert.equal((await getSettings(B)).glass, "off", "another user's setting is untouched");
+});
+test("DB itself rejects an invalid glass value (CHECK constraint)", async () => { await assert.rejects(() => admin.query("UPDATE dashboard_settings SET glass='neon' WHERE user_id=$1", [A]), /check/i); });

@@ -72,8 +72,8 @@ export default function MusicProvider({ children }) {
 
   const api = {
     ready, meta, queue, index, current: queue[index] ?? null, playing, time, dur, volume, shuffle, repeat, local, broken,
-    register(tracks) { setMeta((m) => ({ ...m, ...Object.fromEntries(tracks.map((t) => [t.id, t])) })); },
-    async refreshLocal(ids) { const have = ids.filter((id) => files.current.has(id)); const stored = await idbHas(ids.filter((id) => !files.current.has(id))); setLocal((l) => ({ ...l, ...Object.fromEntries([...have, ...stored].map((id) => [id, true])) })); },
+    register(tracks) { setMeta((m) => ({ ...m, ...Object.fromEntries(tracks.map((t) => [t.id, { ...m[t.id], ...t }])) })); },   // merge: never drop fields (fingerprint, favorite…) another page already loaded
+    async refreshLocal(ids) { const have = ids.filter((id) => files.current.has(id)); const stored = await idbHas(ids.filter((id) => !files.current.has(id))); setLocal((l) => ({ ...l, ...Object.fromEntries([...have, ...stored].map((id) => [id, true])) })); return [...have, ...stored]; },   // returns the ids playable on THIS device
     playTracks(ids, start = 0) { hist.current = []; st.current = { ...st.current, queue: ids }; setQueue(ids); loadIndex(start, true); },
     enqueue(id, atNext = false) { setQueue((q) => { if (!q.length) { st.current = { ...st.current, queue: [id] }; setTimeout(() => loadIndex(0, true), 0); return [id]; } const i = st.current.index; const n = [...q]; n.splice(atNext ? i + 1 : n.length, 0, id); return n; }); toast(atNext ? "Playing next" : "Added to queue"); },
     removeFromQueue(i) { setQueue((q) => { const n = q.filter((_, k) => k !== i); setIndex((cur) => (i < cur ? cur - 1 : i === cur ? Math.min(cur, n.length - 1) : cur)); if (i === st.current.index) { audio.current?.pause(); setPlaying(false); } return n; }); },
