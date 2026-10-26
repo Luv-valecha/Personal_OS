@@ -28,3 +28,7 @@ test("theme commands", () => {
   assert.equal(D("What themes are available?", TZ).tool, "list_themes");
   assert.equal(D("switch to dashboard", TZ), null);   // not a theme name → must not hijack navigation-ish text
 });
+test("budget questions go to get_budget; setting/changing a budget is NOT hijacked", () => {
+  for (const s of ["What's my budget?", "how much budget do I have left", "Am I over budget?", "show my budget", "Tell me my monthly budget", "is my budget enough this month"]) assert.equal(D(s, TZ)?.tool, "get_budget", s);
+  for (const s of ["set my budget to 5000", "increase my monthly budget", "change the budget", "add a task to review the budget"]) assert.notEqual(D(s, TZ)?.tool, "get_budget", s);
+});

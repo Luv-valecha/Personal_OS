@@ -54,6 +54,10 @@ try {
   await q("UPDATE dashboard_settings SET layout=$2 WHERE user_id=$1", [C, JSON.stringify([{ id: "music", visible: true, size: "md" }])]);
   const mh = (await (await fetch(BASE + "/dashboard", { headers: { cookie: cc } })).text()).replace(/<!-- -->/g, "");   /* React text-node separators */ ok("music widget: renders a Play control, an 'All songs' option and the user's playlist", /Music source: all songs or a playlist/.test(mh) && /All songs \(1\)/.test(mh) && /Gym mix \(1\)/.test(mh) && /aria-label="Play"/.test(mh), "");
   const mb = await (await fetch(BASE + "/dashboard", { headers: { cookie: cb } })).text(); ok("music widget: another user never sees this playlist", !mb.includes("Gym mix"));
+  const ist = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
+  await q("UPDATE dashboard_settings SET monthly_budget=10000, currency='$' WHERE user_id=$1", [C]); await q("INSERT INTO expenses(user_id,amount,category,spent_on) VALUES ($1,2500,'food',$2)", [C, ist]);
+  j = await J(cc, "What's my budget?"); ok("budget: JARVIS reports the user's real monthly budget, spend and remainder in THEIR currency", /\$2,500 of \$10,000 \(25%\)/.test(j.cards?.[0]?.title || "") && !JSON.stringify(j).includes("₹"), JSON.stringify(j).slice(0, 260));
+  j = await J(cb, "Am I over budget?"); ok("budget: a user with no budget set is told so (never another user's number)", /No monthly budget set/.test(j.cards?.[0]?.title || "") && !JSON.stringify(j).includes("10,000"), JSON.stringify(j).slice(0, 200));
 } catch (e) { fail++; console.log("ERROR", e); } finally {
   await q("DELETE FROM users WHERE id = ANY($1)", [[A, B, C]]); await db.end(); console.log(`\n${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
 }

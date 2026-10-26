@@ -6,7 +6,9 @@ import Modal from "@/components/ui/Modal";
 import { Field, Segmented } from "@/components/ui/Fields";
 import { Empty } from "@/components/ui/misc";
 import { useAction } from "@/components/ui/useAction";
-import { createEvent, updateEvent, deleteEvent } from "@/actions/events";
+import { createEvent, updateEvent, deleteEvent, deleteEventOccurrence, updateEventOccurrence, restoreEventOccurrence } from "@/actions/events";
+import RepeatPicker from "@/components/calendar/RepeatPicker";
+import { repeatFromEvent, repeatToPayload, seriesTimesForEdit } from "@/lib/repeat-ui";
 import { addDays, startOfWeek, startOfMonth, dateInTz, fmtTime, zonedToIso, isoToLocalInput } from "@/lib/dates";
 
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -52,22 +54,41 @@ export default function CalendarClient({ events, today, tz, openId = "", initial
 }
 function EventEditor({ e, tz, today, onClose }) {
   const { run, pending } = useAction(); const isNew = !e.id; const day = e.day || today;
+  const occ = !!e.recurring;                                                    // opened from one occurrence of a repeating event
+  const etz = occ && e.recurrence_rule?.tz ? e.recurrence_rule.tz : tz;         // a series keeps its own time zone
+  const [scope, setScope] = useState("this"); const [err, setErr] = useState(""); const [confirmDel, setConfirmDel] = useState(false);
+  const [rep, setRep] = useState(() => repeatFromEvent(e));
   const [f, setF] = useState({ title: e.title || "", description: e.description || "", location: e.location || "", all_day: !!e.all_day,
-    start: e.starts_at ? isoToLocalInput(e.starts_at, tz) : `${day}T09:00`, end: e.ends_at ? isoToLocalInput(e.ends_at, tz) : `${day}T10:00`, reminder: e.reminder_minutes ?? "", recurrence: e.recurrence || "none" });
+    start: e.starts_at ? isoToLocalInput(e.starts_at, etz) : `${day}T09:00`, end: e.ends_at ? isoToLocalInput(e.ends_at, etz) : `${day}T10:00`, reminder: e.reminder_minutes ?? "" });
   const set = (k) => (ev) => setF((s) => ({ ...s, [k]: ev.target.type === "checkbox" ? ev.target.checked : ev.target.value }));
-  async function save(ev) { ev.preventDefault();
-    const s = f.all_day ? f.start.slice(0, 10) + "T00:00" : f.start, en = f.all_day ? f.end.slice(0, 10) + "T23:59" : f.end;
-    const body = { title: f.title, description: f.description, location: f.location, all_day: f.all_day, starts_at: zonedToIso(s, tz), ends_at: zonedToIso(en, tz), reminder_minutes: f.reminder, recurrence: f.recurrence };
-    if (await run(() => (isNew ? createEvent(body) : updateEvent(e.id, body)), { ok: isNew ? "Event added" : "Event updated" })) onClose(); }
-  async function del() { if (confirm(f.recurrence !== "none" ? "Delete this event and all its repeats?" : "Delete this event?") && await run(() => deleteEvent(e.id), { ok: "Deleted" })) onClose(); }
+  const thisOnly = occ && scope === "this";
+  async function save(ev) { ev.preventDefault(); if (pending) return; setErr("");
+    let s = f.all_day ? f.start.slice(0, 10) + "T00:00" : f.start, en = f.all_day ? f.end.slice(0, 10) + "T23:59" : f.end;
+    if (thisOnly) {                                                              // ONE occurrence: only this date changes; the series is untouched
+      const patch = { title: f.title, description: f.description, location: f.location, all_day: f.all_day, starts_at: zonedToIso(s, etz), ends_at: zonedToIso(en, etz) };
+      if (await run(() => updateEventOccurrence(e.id, e.occurrence_date, patch), { ok: "This occurrence updated" })) onClose(); return;
+    }
+    if (occ) { const t = seriesTimesForEdit(e, s, en, etz); s = t.start; en = t.end; }   // whole series: keep the series' own start date, apply the new time of day / length
+    const r = repeatToPayload(rep); if (r.error) { setErr(r.error); return; }
+    const body = { title: f.title, description: f.description, location: f.location, all_day: f.all_day, starts_at: zonedToIso(s, etz), ends_at: zonedToIso(en, etz), reminder_minutes: f.reminder, recurrence: r.recurrence, recurrence_rule: r.recurrence_rule };
+    if (await run(() => (isNew ? createEvent(body) : updateEvent(e.id, body)), { ok: isNew ? "Event added" : occ ? "Whole series updated" : "Event updated" })) onClose(); }
+  async function delOne() { if (await run(() => deleteEventOccurrence(e.id, e.occurrence_date), { ok: "This occurrence deleted" })) onClose(); }
+  async function delSeries() { if (confirm("Delete this event and ALL of its repeats?") && await run(() => deleteEvent(e.id), { ok: "Series deleted" })) onClose(); }
+  async function reset() { if (await run(() => restoreEventOccurrence(e.id, e.occurrence_date), { ok: "Reset to the series" })) onClose(); }
   return (<Modal open onClose={onClose} title={isNew ? "New event" : "Edit event"}><form onSubmit={save} className="flex flex-col gap-3">
+    {occ && <div role="group" aria-label="What to change" className="seg"><button type="button" aria-pressed={scope === "this"} onClick={() => setScope("this")}>This event only</button><button type="button" aria-pressed={scope === "all"} onClick={() => setScope("all")}>All events in the series</button></div>}
+    {e.is_exception && thisOnly && <p className="small muted" style={{ margin: 0 }}>This occurrence has been changed from the series. <button type="button" className="btn btn-sm" onClick={reset} disabled={pending}>Reset to series</button></p>}
     <Field label="Title"><input className="input" value={f.title} onChange={set("title")} required autoFocus /></Field>
     <label className="flex items-center gap-2 small"><input type="checkbox" className="check" checked={f.all_day} onChange={set("all_day")} /> All day</label>
     <div className="form-grid two"><Field label="Starts"><input className="input" type={f.all_day ? "date" : "datetime-local"} value={f.all_day ? f.start.slice(0, 10) : f.start} onChange={set("start")} required /></Field>
       <Field label="Ends"><input className="input" type={f.all_day ? "date" : "datetime-local"} value={f.all_day ? f.end.slice(0, 10) : f.end} onChange={set("end")} required /></Field>
       <Field label="Location"><input className="input" value={f.location} onChange={set("location")} /></Field>
-      <Field label="Reminder"><select className="select" value={f.reminder} onChange={set("reminder")}><option value="">None</option><option value="0">At start</option><option value="10">10 minutes before</option><option value="30">30 minutes before</option><option value="60">1 hour before</option><option value="1440">1 day before</option></select></Field>
-      <Field label="Repeats"><select className="select" value={f.recurrence} onChange={set("recurrence")}><option value="none">Never</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></Field></div>
+      {!thisOnly && <Field label="Reminder"><select className="select" value={f.reminder} onChange={set("reminder")}><option value="">None</option><option value="0">At start</option><option value="10">10 minutes before</option><option value="30">30 minutes before</option><option value="60">1 hour before</option><option value="1440">1 day before</option></select></Field>}</div>
+    {!thisOnly && <RepeatPicker value={rep} onChange={setRep} startDate={(e.series_starts_at ? isoToLocalInput(e.series_starts_at, etz) : f.start).slice(0, 10)} />}
     <Field label="Description"><textarea className="textarea" style={{ minHeight: 64 }} value={f.description} onChange={set("description")} /></Field>
-    <div className="flex justify-between">{!isNew ? <button type="button" className="btn btn-danger" onClick={del}><Trash2 size={15} /> Delete</button> : <span />}<div className="flex gap-2"><button type="button" className="btn" onClick={onClose}>Cancel</button><button className="btn btn-primary" disabled={pending}>Save</button></div></div></form></Modal>);
+    {err && <p className="small" role="alert" style={{ margin: 0, color: "var(--color-danger, #e5484d)" }}>{err}</p>}
+    {confirmDel && occ ? (
+      <div className="flex gap-2" style={{ flexWrap: "wrap" }} role="group" aria-label="Delete options"><button type="button" className="btn btn-danger" disabled={pending} onClick={delOne}>Delete this event only</button><button type="button" className="btn btn-danger" disabled={pending} onClick={delSeries}>Delete the whole series</button><button type="button" className="btn" onClick={() => setConfirmDel(false)}>Keep</button></div>
+    ) : (
+    <div className="flex justify-between">{!isNew ? <button type="button" className="btn btn-danger" onClick={() => (occ ? setConfirmDel(true) : confirm("Delete this event?") && run(() => deleteEvent(e.id), { ok: "Deleted" }).then((ok) => ok && onClose()))}><Trash2 size={15} /> Delete</button> : <span />}<div className="flex gap-2"><button type="button" className="btn" onClick={onClose}>Cancel</button><button className="btn btn-primary" disabled={pending}>{pending ? "Saving…" : "Save"}</button></div></div>)}</form></Modal>);
 }

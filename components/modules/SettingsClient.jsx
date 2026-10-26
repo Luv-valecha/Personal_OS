@@ -10,15 +10,23 @@ import { saveLayout } from "@/actions/settings";
 import { DEFAULT_LAYOUT } from "@/lib/layout";
 import Link from "next/link";
 import { useAction } from "@/components/ui/useAction";
+import { useToast } from "@/components/ui/Toast";
 import { updateDisplayName, updatePreferences, setMotion, setGlass } from "@/actions/settings";
 import { logoutAction } from "@/actions/auth";
 
-export default function SettingsClient({ user, settings, customThemes, quickLinks }) {
+export default function SettingsClient({ user, settings, customThemes, quickLinks, pendingMigrations = [] }) {
+  const toast = useToast();
   const { run, pending } = useAction(); const [name, setName] = useState(user.display_name); const [motion, setMo] = useState(settings.motion); const [glass, setGl] = useState(settings.glass || "off");
   const [p, setP] = useState({ weather_city: settings.weather_city, monthly_budget: settings.monthly_budget || "", currency: settings.currency });
   const [perm, setPerm] = useState(typeof Notification !== "undefined" ? Notification.permission : "unsupported");
   return (<>
     <PageHead title="Settings" />
+    {pendingMigrations.length > 0 && (
+      <section className="card" role="alert" style={{ borderColor: "var(--color-primary)", marginBottom: 16 }}>
+        <div className="card-title">Database update needed</div>
+        <p className="small" style={{ margin: "0 0 6px" }}>Some V4 settings and features can’t be saved to your account until you run <code>npm run db:migrate</code> against this app’s database.</p>
+        <p className="small muted" style={{ margin: 0 }}>Pending: {pendingMigrations.join(", ")}</p>
+      </section>)}
     <div className="flex flex-col gap-4">
       <section className="card"><div className="card-title">Profile</div>
         <form className="flex gap-2 flex-wrap items-end" onSubmit={async (e) => { e.preventDefault(); await run(() => updateDisplayName(name), { ok: "Name updated" }); }}>
@@ -27,7 +35,7 @@ export default function SettingsClient({ user, settings, customThemes, quickLink
       <section className="card" id="themes"><div className="card-title">Appearance</div>
         <div className="mb-5"><span className="label">Animations</span><Segmented value={motion} onChange={async (v) => { setMo(v); document.documentElement.setAttribute("data-motion", v); await run(() => setMotion(v)); }} options={[{ value: "full", label: "Full" }, { value: "reduced", label: "Reduced" }, { value: "off", label: "Off" }]} label="Animations" />
           <p className="small muted mt-1">Your device&apos;s “reduce motion” setting is always respected.</p></div>
-        <div className="mb-5"><span className="label">Glass widgets</span><Segmented value={glass} onChange={async (v) => { const prev = glass; setGl(v); document.documentElement.setAttribute("data-glass", v); if (!(await run(() => setGlass(v)))) { setGl(prev); document.documentElement.setAttribute("data-glass", prev); } }} options={[{ value: "off", label: "Off" }, { value: "soft", label: "Soft" }, { value: "strong", label: "Strong" }]} label="Glass widgets" />
+        <div className="mb-5"><span className="label">Glass widgets</span><Segmented value={glass} onChange={async (v) => { const prev = glass; setGl(v); document.documentElement.setAttribute("data-glass", v); const res = await run(() => setGlass(v)); if (!res) { setGl(prev); document.documentElement.setAttribute("data-glass", prev); } else if (res.synced === false) toast("Saved on this device only — your database needs an update (npm run db:migrate) to sync it to your account.", "err"); }} options={[{ value: "off", label: "Off" }, { value: "soft", label: "Soft" }, { value: "strong", label: "Strong" }]} label="Glass widgets" />
           <p className="small muted mt-1">Frosted, translucent dashboard cards. Looks best on themes with a background glow (e.g. Hell). Turns itself off if your device asks for reduced transparency.</p></div>
         <ThemeSelector current={settings.theme} customThemes={customThemes} activeCustom={settings.active_custom_theme} /></section>
       <ThemeSlideshowSettings customThemes={customThemes} />

@@ -24,8 +24,12 @@ export async function setMotion(motion) {
 export async function setGlass(glass) {
   return safe(async () => {
     const uid = await requireUserId(); if (!GLASS.includes(glass)) throw fail("Invalid glass setting");
-    await query("UPDATE dashboard_settings SET glass=$2, updated_at=now() WHERE user_id=$1", [uid, glass]);
-    (await cookies()).set("glass", glass, COOKIE_OPTS); refresh(); return true;
+    // synced=false means migration 009 hasn't been applied to this database yet (Postgres 42703 = undefined column). The choice is still
+    // saved on this device (cookie) so it never "resets", and the caller is told it isn't synced to the account.
+    let synced = true;
+    try { await query("UPDATE dashboard_settings SET glass=$2, updated_at=now() WHERE user_id=$1", [uid, glass]); }
+    catch (e) { if (e?.code === "42703") synced = false; else throw e; }
+    (await cookies()).set("glass", glass, COOKIE_OPTS); refresh(); return { synced };
   });
 }
 const prefs = z.object({

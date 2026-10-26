@@ -22,7 +22,7 @@ export default async function RootLayout({ children }) {
   const uid = await getUserId().catch(() => null);
   if (uid) { // logged in: the database is the source of truth (survives logout/login and new devices)
     try {
-      const s = await getSettings(uid); theme = s.theme; motion = s.motion; glass = s.glass;
+      const s = await getSettings(uid); theme = s.theme; motion = s.motion; glass = s.glass ?? glass;   // ?? keeps the device cookie if the DB has no value (migration 009 pending)
       if (theme === "custom") style = customThemeStyle(await getCustomTheme(uid, s.active_custom_theme));
     } catch {}
   }
