@@ -58,6 +58,7 @@ try {
   await q("UPDATE dashboard_settings SET monthly_budget=10000, currency='$' WHERE user_id=$1", [C]); await q("INSERT INTO expenses(user_id,amount,category,spent_on) VALUES ($1,2500,'food',$2)", [C, ist]);
   j = await J(cc, "What's my budget?"); ok("budget: JARVIS reports the user's real monthly budget, spend and remainder in THEIR currency", /\$2,500 of \$10,000 \(25%\)/.test(j.cards?.[0]?.title || "") && !JSON.stringify(j).includes("₹"), JSON.stringify(j).slice(0, 260));
   j = await J(cb, "Am I over budget?"); ok("budget: a user with no budget set is told so (never another user's number)", /No monthly budget set/.test(j.cards?.[0]?.title || "") && !JSON.stringify(j).includes("10,000"), JSON.stringify(j).slice(0, 200));
+  const jh = await (await fetch(BASE + "/dashboard", { headers: { cookie: cc } })).text(); ok("voice: the dashboard JARVIS bar renders an accessible mic control, and spoken replies are not forced on", /aria-label="Speak to JARVIS"/.test(jh) && /aria-pressed="false"/.test(jh) && !/Turn spoken replies off/.test(jh));
 } catch (e) { fail++; console.log("ERROR", e); } finally {
   await q("DELETE FROM users WHERE id = ANY($1)", [[A, B, C]]); await db.end(); console.log(`\n${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
 }

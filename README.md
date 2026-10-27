@@ -1,10 +1,85 @@
-# Lucifer's OS — V3.1.21
+# Lucifer's OS — V4.0.0
 
 A minimal, fast, installable (PWA) personal operating system: tasks, calendar, deadlines, notes, bookmarks, projects, ideas, focus timer, expenses, files, developer projects, activity feed, global search, command palette, a customizable dashboard and **18 built-in themes + a custom theme builder**.
 
 **JavaScript only (no TypeScript)** · Next.js 16 App Router · PostgreSQL · Tailwind CSS 4 + CSS variables · deployable on free tiers.
 
-## What's new in V3.x (current: **3.1.21**)
+## What's new in V4.0.0 (current)
+V4 extends V3 — every V3.x module, authentication, themes, the PWA, and your existing data are unchanged. All schema changes are **additive migrations 006–010** (see *Database migrations*). Nothing from V3 was removed. Free-tier compatible: Redis is optional, and every V4 feature works without it.
+
+| Area | What you get | Where |
+|---|---|---|
+| **JARVIS voice** | Mic button beside the input (browser speech recognition → text appears in the input for you to review and edit; it is **never auto-sent**). Optional spoken replies (speaker toggle, **off by default**), stop button, voice + speed settings. | dashboard JARVIS bar |
+| **JARVIS memory** | "Remember that …" / "what do you remember?" / "forget that …". See, add, edit and delete memories in **Settings → JARVIS memory**. Secrets (passwords, keys, card numbers) are rejected. | `lib/memory*.js` |
+| **JARVIS task filtering** | Questions like "tasks due this week", "high-priority tasks in Lucifer OS", "how many tasks did I complete this month?" are turned into **database filters** (never "fetch everything and let the AI sort it"). | `lib/jarvis/taskquery.js` |
+| **JARVIS budget** | "What's my budget?" / "Am I over budget?" use your real monthly budget and the same month-to-date spend as the dashboard. Expense answers now use **your** currency symbol. | tool `get_budget` |
+| **JARVIS themes** | "Switch to Hell theme", "use the default theme", "what themes are available?" — resolved against the real theme registry. | tools `set_theme`, `list_themes` |
+| **Hell theme** | New dark ember/crimson theme (contrast checked by tests; no glowing text; respects reduced motion). | Settings → Theme |
+| **Project Bugs** | A Bugs section next to Tasks and Ideas inside every project (statuses Open / In progress / Resolved / Won't fix, priority, due date, description, search, filter). JARVIS: "add a bug to Lucifer OS", "show the open bugs in Lucifer OS", "mark the dashboard bug resolved". | project editor |
+| **Checklists** | Lightweight lists: tick to cross out, rename, reorder (↑/↓), delete, progress bar, optional project link. | `/checklists` |
+| **Project deletion fix** | Deleting a project now deletes **everything it owns** (tasks, ideas, notes, deadlines, files, bugs, linked checklists) atomically. The confirmation lists the counts. | see *Project deletion* |
+| **Task editing + scheduled date** | Tasks opened from the dashboard or Today now open the editor (they didn't before). New optional **scheduled date** (the day you plan to work on it), separate from the **due date** (deadline). | `/tasks?open=<id>` |
+| **Everything editable** | Expenses, split entries and files gained edit dialogs; dashboard deadlines/events/notes open their editors. | each module |
+| **`@project` quick commands** | `@Project Name` now works for **tasks, ideas and bugs**, including names with spaces. | see *@project syntax* |
+| **Custom recurring events** | Every N days/weeks/months/years, chosen weekdays, a day of the month or the last day, ending never / on a date / after N times; edit or delete **one occurrence or the whole series**. | calendar editor |
+| **Dashboard widgets** | New opt-in widgets: **Music** (play your library or pick a playlist), **Ideas**, **Open bugs**, **Checklists**; tasks widget has a project filter; optional **glass** look (Settings → Glass widgets). Hidden widgets load no data. | Customize on the dashboard |
+| **Redis cache (optional)** | Repeated read-only JARVIS answers and the dashboard data are cached per user, with version-token invalidation. Redis is only a cache. | `REDIS_SETUP.md` |
+
+### JARVIS voice — what it does and doesn't do
+* Voice input uses the **browser's** speech recognition. It starts only when you tap the mic (no wake word, never continuous), stops when you tap again or press Esc, and the recognised text goes into the input box — you press Send. It uses the same endpoint, tools, validation and confirmations as typing.
+* **Browser limits:** Chrome, Edge and Safari support it; Firefox does not (the mic explains this and typing still works). In Chrome/Edge/Safari the audio is processed by the browser vendor's speech service, so it **needs an internet connection**; this app never records or stores audio.
+* Spoken replies use the device's built-in voices (`speechSynthesis`) — **no text is sent to any speech provider**. Replies are shortened for speech (long lists are not read out; the full reply stays on screen). Settings (on/off, voice, speed) are saved **on this device** (voices differ per device).
+* Unverified in development: actual microphone/audio behaviour (no browser was available to the author). The logic is covered by tests that drive fake browser speech APIs.
+
+### `@project` syntax (quick add, command palette and JARVIS)
+`Add task: Finish report tomorrow @Lucifer OS` · `Add idea: Adaptive memory updates @MemTransUNet` · `Add bug: Nav overflows @Lucifer OS !high`
+* `@Name With Spaces` runs to the next ` #tag` / ` !priority` or the end; `@"Quoted Name"` is also accepted. An `@` inside a word (an email) is ignored.
+* Exact (case-insensitive) names beat partial ones; longer matches beat shorter ones. **Several matches → you're asked which; no match → an error. A record is never created in a guessed project or silently left unassigned.** A bug **requires** a project.
+* Plain text without `@` behaves exactly as in V3. The old single-word `@tag` form still works.
+
+### Project deletion (changed behaviour)
+V3 left a deleted project's tasks/ideas/notes/deadlines/files behind, unassigned. **V4 deletes them with the project** (one database statement, so it is all-or-nothing): tasks, ideas, notes, deadlines, files (and their metadata), bugs, and checklists linked to that project. Not touched: other projects, standalone checklists, and anything belonging to another user. A task whose *idea* is deleted keeps living (its link is just cleared). The delete dialog lists exactly how many of each will go. Deleting is permanent — back up first if unsure.
+
+### Dates on tasks
+* **Due date** = the deadline. **Scheduled date** (new, optional) = the day you intend to work on it.
+* "Today's tasks" means *scheduled for today*, or *due today if it has no scheduled date*. A task scheduled for a later day that is merely due today is not shown. In JARVIS a bare date ("add a task **for tomorrow** to review the paper") sets the **scheduled** date; "due", "by" or "deadline" set the deadline. (The command palette quick-add still treats a typed date as the due date, as in V3.)
+
+### Recurring events — semantics
+* A repeating event is **one database row** with a rule; occurrences are generated for the visible window only (≤ 400 days, ≤ 400 per series), so unbounded series can't run away. Existing none/daily/weekly/monthly events keep working.
+* Occurrences keep the series' **local clock time** in its own time zone (a 09:00 event stays 09:00 across daylight-saving changes).
+* Monthly on day 29–31 **skips months that don't have that day**; choose *last day of the month* to hit every month. Yearly Feb 29 occurs only in leap years.
+* Edit **this event only** (that occurrence changes; "Reset to series" undoes it) or **all events** (the series). Delete this occurrence or the whole series. "This and following events" is not supported.
+* JARVIS: "create a weekly event every Monday", "recurring study session every weekday", "event on the first day of every month", "repeat *Sprint review* every two weeks until December". Ambiguous wording ("bimonthly") gets a question instead of a guess.
+
+## Database migrations (V4)
+All additive and idempotent; applied in order and recorded in `_migrations`. **Back up first** (Neon: create a branch from main — instant; or `pg_dump "$DATABASE_URL" > backup.sql`).
+
+| File | Adds |
+|---|---|
+| `006_v4_core.sql` | `tasks.scheduled_date`; project-owned tables now `ON DELETE CASCADE` |
+| `007_jarvis_memory.sql` | `jarvis_memories` |
+| `008_bugs_checklists.sql` | `bugs`, `checklists`, `checklist_items` (ownership enforced by composite foreign keys) |
+| `009_glass_widgets.sql` | `dashboard_settings.glass` |
+| `010_recurring_events.sql` | `events.recurrence_rule`, `'custom'` recurrence, `event_exceptions` |
+
+**Apply:** `npm run db:migrate` (uses `DATABASE_URL` from `.env.local`; run it against production *before or right after* deploying). If a migration is missing, **Settings shows a "Database update needed" notice** listing it.
+**Rollback limits:** there are no down-migrations. The new columns/tables are simply ignored if you redeploy V3 code, with two caveats: V3 would then *delete-cascade* project contents (the foreign keys stay `CASCADE`; restore `SET NULL` manually if you need the old behaviour), and V3 does not understand `recurrence = 'custom'` events (they would show as one-off events). Restore from the backup if you need a true rollback.
+
+## Deploy order (existing Vercel + Neon)
+1. **Back up** (Neon branch or `pg_dump`). 2. Add any new env vars (Redis ones are optional — `.env.example`, `REDIS_SETUP.md`). 3. `npm run db:migrate` against production. 4. Push/deploy. 5. Sign in (auth unchanged). 6. Try JARVIS ("show me today's tasks", "what's my budget?"). 7. Try the new features (checklist, project bug, recurring event, Hell theme). 8. If Redis is configured: ask JARVIS an AI question twice, then open `/api/cache/status` (signed in) — expect hits; see `REDIS_SETUP.md`. 9. Watch Vercel logs and the Upstash usage page for the first days. **The author did not deploy or touch any production system** — everything below was verified against a local development Postgres.
+
+## Testing (V4)
+`npm ci` · `npm test` (unit: parsers, recurrence engine, voice controller, themes/contrast, cache core …) · `npm run test:db` (needs a **local/dev** Postgres in `DATABASE_URL`; each test builds a throw-away schema and refuses Neon/Supabase URLs) · live-app suites: `npm run build && npm start`, then `node tests/e2e/phase2_http.mjs`, `phase3_http.mjs`, `glass_persist_http.mjs`, `events_http.mjs`, `ssr_smoke.mjs`; `npm run test:e2e:cache` (spawns its own apps and mock Redis/Gemini). `npm run lint` is **broken upstream** (`next lint` was removed in Next 16) — there is no lint step. Real Gemini, real Upstash, real browser audio and a real browser UI were **not** exercised.
+
+## Known limitations (V4)
+* Speech recognition depends on the browser (none in Firefox; needs internet elsewhere); spoken replies depend on installed voices. Preferences are per device.
+* Redis (Upstash free): 500K commands/month, 256 MB — see `REDIS_SETUP.md`. Any write invalidates all of a user's cached answers (simple and safe, lower hit rate). Staleness window if an invalidation can't reach Redis: the entry TTL (≤ 10 min). The dashboard cache speed-up was **not measured on real Neon + Upstash** — run `npm run cache:bench`; set `DASHBOARD_CACHE=0` if it doesn't help.
+* Music: audio files stay on each device; the dashboard widget plays only the songs available on *this* device and loads at most 800 library tracks (the Music page has them all).
+* Bugs have no link to tasks (your schema has no such relationship). "Switch back to my previous theme" is not supported. JARVIS can read but not *set* your monthly budget.
+* Recurrence: no "this and following"; an occurrence edited to move far outside its window is found only if its original slot is within a day of the viewed range.
+* **Not built:** a YouTube downloader (dropped by request).
+
+## What's new in V3.x (V3.1.21)
 V3 extends V2 — every V2/V1 module, the theme system, auth, PWA and project relationships are unchanged.
 
 ### 1. JARVIS — AI assistant on the dashboard
