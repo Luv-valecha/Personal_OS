@@ -1,10 +1,15 @@
-# Lucifer's OS — V4.0.0
+# Lucifer's OS — V4.0.1
 
 A minimal, fast, installable (PWA) personal operating system: tasks, calendar, deadlines, notes, bookmarks, projects, ideas, focus timer, expenses, files, developer projects, activity feed, global search, command palette, a customizable dashboard and **18 built-in themes + a custom theme builder**.
 
 **JavaScript only (no TypeScript)** · Next.js 16 App Router · PostgreSQL · Tailwind CSS 4 + CSS variables · deployable on free tiers.
 
-## What's new in V4.0.0 (current)
+## V4.0.1 — patch
+* **Microphone permission now actually prompts.** The V3 security header `Permissions-Policy: microphone=()` forbade the mic for the whole site, so Chrome never showed its "Allow microphone?" prompt and voice input failed instantly ("blocked") even though Chrome's site setting said *Ask*. It is now `microphone=(self)` (this app's own pages only; third-party frames, camera and geolocation stay blocked). Tapping the mic now also requests permission explicitly, then starts listening; "prompt closed without choosing", "blocked" and "no microphone" each get their own clear message.
+* **Music player ✕.** The close button was hidden on phones (`hidden sm:inline-flex`) and only ever cleared the whole queue. It is now visible at every width and **dismisses the player without touching your queue**: playback pauses, the bar hides (and stays hidden across page changes and reloads), and it returns the moment you play something again. *Clear queue* remains on the Music page.
+* No database migration. Redeploying is enough; reload once so the service worker (now 4.0.1) takes over.
+
+## What's new in V4.0.0
 V4 extends V3 — every V3.x module, authentication, themes, the PWA, and your existing data are unchanged. All schema changes are **additive migrations 006–010** (see *Database migrations*). Nothing from V3 was removed. Free-tier compatible: Redis is optional, and every V4 feature works without it.
 
 | Area | What you get | Where |
@@ -26,7 +31,7 @@ V4 extends V3 — every V3.x module, authentication, themes, the PWA, and your e
 | **Redis cache (optional)** | Repeated read-only JARVIS answers and the dashboard data are cached per user, with version-token invalidation. Redis is only a cache. | `REDIS_SETUP.md` |
 
 ### JARVIS voice — what it does and doesn't do
-* Voice input uses the **browser's** speech recognition. It starts only when you tap the mic (no wake word, never continuous), stops when you tap again or press Esc, and the recognised text goes into the input box — you press Send. It uses the same endpoint, tools, validation and confirmations as typing.
+* Voice input uses the **browser's** speech recognition. It starts only when you tap the mic (no wake word, never continuous) — the first time, your browser asks **Allow microphone?** (the app requests it explicitly; if you dismissed the prompt it asks you to tap again, if you chose Block it tells you where to unblock) — and stops when you tap again or press Esc, and the recognised text goes into the input box — you press Send. It uses the same endpoint, tools, validation and confirmations as typing.
 * **Browser limits:** Chrome, Edge and Safari support it; Firefox does not (the mic explains this and typing still works). In Chrome/Edge/Safari the audio is processed by the browser vendor's speech service, so it **needs an internet connection**; this app never records or stores audio.
 * Spoken replies use the device's built-in voices (`speechSynthesis`) — **no text is sent to any speech provider**. Replies are shortened for speech (long lists are not read out; the full reply stays on screen). Settings (on/off, voice, speed) are saved **on this device** (voices differ per device).
 * Unverified in development: actual microphone/audio behaviour (no browser was available to the author). The logic is covered by tests that drive fake browser speech APIs.

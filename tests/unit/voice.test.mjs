@@ -86,3 +86,52 @@ test("speakable(): concise, plain text; long and structured replies are not read
   assert.equal(speakable({ type: "error", text: "internal stack trace…" }), "Sorry, that didn’t work.", "never reads error internals aloud");
   assert.ok(!/```|`/.test(speakable(res({ text: "run `npm test` ```code block``` done" }))));
 });
+
+// ── V4.0.1: the app must actually ASK for the microphone ──
+function mediaWin({ perm = "prompt", gum = "ok", permAfter, noPermsApi = false, policyBlocks = false } = {}) {
+  const w = fakeWin(); w.gumCalls = 0; w.tracksStopped = 0; let afterGum = false;
+  w.navigator.mediaDevices = { getUserMedia: async () => { w.gumCalls++; afterGum = true; if (gum !== "ok") { const e = new Error(gum); e.name = gum; throw e; } return { getTracks: () => [{ stop: () => w.tracksStopped++ }] }; } };
+  if (!noPermsApi) w.navigator.permissions = { query: async () => ({ state: afterGum && permAfter ? permAfter : perm }) };
+  if (policyBlocks) w.document = { permissionsPolicy: { allowsFeature: (f) => f !== "microphone" } };
+  return w;
+}
+const tap = async (opts) => { const w = mediaWin(opts); const m = mk({ win: w }); await m.v.startListening(); return { ...m, w }; };
+
+test("PROMPT state: the app explicitly asks (getUserMedia), releases the mic stream, THEN starts recognition", async () => {
+  const { v, w } = await tap({ perm: "prompt", gum: "ok" });
+  assert.equal(w.gumCalls, 1, "browser permission prompt requested exactly once"); assert.equal(w.tracksStopped, 1, "stream released immediately (no lingering mic indicator)");
+  assert.equal(w.recs.length, 1); assert.equal(w.recs[0].started, 1); assert.equal(v.state.input, "listening");
+});
+test("already GRANTED: no needless prompt, recognition starts", async () => { const { v, w } = await tap({ perm: "granted" }); assert.equal(w.gumCalls, 0); assert.equal(w.recs.length, 1); assert.equal(v.state.input, "listening"); });
+test("BLOCKED (permission 'denied'): no prompt is possible, so say exactly where to unblock — and don't start recognition", async () => {
+  const { v, w } = await tap({ perm: "denied" }); assert.equal(w.gumCalls, 0); assert.equal(w.recs.length, 0); assert.equal(v.state.input, "denied"); assert.match(v.state.message, /Site settings → Microphone → Allow/);
+});
+test("prompt DISMISSED (closed without choosing) is NOT reported as 'blocked' — it asks you to tap again", async () => {
+  const { v, w } = await tap({ perm: "prompt", gum: "NotAllowedError", permAfter: "prompt" }); assert.equal(v.state.input, "needs-permission"); assert.match(v.state.message, /tap the mic again and choose Allow/i); assert.equal(w.recs.length, 0);
+  v.dismissMessage(); assert.equal(v.state.input, "idle");
+});
+test("prompt answered 'Block': reported as blocked with instructions", async () => { const { v } = await tap({ perm: "prompt", gum: "NotAllowedError", permAfter: "denied" }); assert.equal(v.state.input, "denied"); assert.match(v.state.message, /Site settings/); });
+test("no microphone / mic busy each get their own message", async () => {
+  assert.match((await tap({ gum: "NotFoundError" })).v.state.message, /No microphone was found/); assert.match((await tap({ gum: "NotReadableError" })).v.state.message, /in use by another/);
+});
+test("works when the Permissions API doesn't exist (older Safari): still prompts via getUserMedia", async () => { const { v, w } = await tap({ noPermsApi: true }); assert.equal(w.gumCalls, 1); assert.equal(v.state.input, "listening"); });
+test("no mediaDevices at all: recognition starts straight away (it asks for itself)", () => { const w = fakeWin(); const m = mk({ win: w }); m.v.startListening(); assert.equal(w.recs.length, 1); assert.equal(m.v.state.input, "listening"); });
+test("double-tap while the prompt is open never asks twice", async () => {
+  const w = mediaWin({ perm: "prompt" }); const { v } = mk({ win: w }); const a = v.startListening(); v.startListening(); v.startListening(); await a; assert.equal(w.gumCalls, 1); assert.equal(w.recs.length, 1);
+});
+test("cancelling while the permission prompt is open means recognition never starts afterwards", async () => {
+  const w = mediaWin({ perm: "prompt" }); const { v } = mk({ win: w }); const p = v.startListening(); assert.equal(v.state.input, "asking"); v.cancelListening(); await p; assert.equal(v.state.input, "cancelled"); assert.equal(w.recs.length, 0);
+});
+test("a page whose Permissions-Policy forbids the mic gets a clear, honest message (not a silent 'blocked')", async () => {
+  const w = mediaWin({ policyBlocks: true }); const { v } = mk({ win: w }); v.startListening(); assert.equal(w.gumCalls, 0); assert.equal(v.state.input, "error"); assert.match(v.state.message, /server setting blocks it/);
+});
+test("the 'asking' state tells the user what to expect", async () => { const w = mediaWin({ perm: "prompt" }); const { v } = mk({ win: w }); const p = v.startListening(); assert.match(v.state.message, /Allow the microphone when your browser asks/); await p; });
+
+// ── the ROOT CAUSE: the HTTP header ──
+import fs from "node:fs";
+test("REGRESSION: the Permissions-Policy header lets this site's own pages use the microphone (it was microphone=() which made Chrome never prompt)", () => {
+  const cfg = fs.readFileSync("next.config.js", "utf8"); const value = cfg.match(/key:\s*"Permissions-Policy",\s*value:\s*"([^"]+)"/)?.[1];
+  assert.ok(value, "Permissions-Policy header is defined"); assert.match(value, /microphone=\(self\)/); assert.ok(!/microphone=\(\)/.test(value), "an EMPTY allow-list disables the mic for the page");
+  assert.match(value, /camera=\(\)/); assert.match(value, /geolocation=\(\)/);                                   // everything else stays locked down
+  assert.ok(!/microphone=\(\*\)|microphone=\*/.test(value), "never allow third-party frames to use the mic");
+});

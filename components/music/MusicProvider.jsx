@@ -1,4 +1,5 @@
 "use client";
+import { miniPlayerVisible } from "@/lib/music-ui";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { upsertTracks } from "@/actions/music";
@@ -20,17 +21,18 @@ export default function MusicProvider({ children }) {
   const [local, setLocal] = useState({});        // id → true when a File/handle is available on THIS device
   const [broken, setBroken] = useState({});      // id → true when playback failed / file inaccessible
   const [ready, setReady] = useState(false);
+  const [dismissed, setDismissed] = useState(false);   // the bar was closed with ✕ (queue kept)
   const st = useRef({}); st.current = { queue, index, shuffle, repeat, meta };
 
   // restore preferences + queue snapshot (no autoplay)
   useEffect(() => {
-    try { const s = JSON.parse(localStorage.getItem(KEY) || "null"); if (s) { setQueue(s.queue?.map((q) => q.id) || []); setIndex(Math.min(s.index ?? -1, (s.queue?.length || 0) - 1)); setVolume(s.volume ?? 0.8); setShuffle(!!s.shuffle); setRepeat(s.repeat || "off");
+    try { const s = JSON.parse(localStorage.getItem(KEY) || "null"); if (s) { setQueue(s.queue?.map((q) => q.id) || []); setIndex(Math.min(s.index ?? -1, (s.queue?.length || 0) - 1)); setVolume(s.volume ?? 0.8); setShuffle(!!s.shuffle); setRepeat(s.repeat || "off"); setDismissed(!!s.dismissed);
       setMeta((m) => ({ ...m, ...Object.fromEntries((s.queue || []).map((q) => [q.id, { title: q.title, artist: q.artist, duration_sec: q.duration_sec }])) })); } } catch {}
     setReady(true);
   }, []);
-  useEffect(() => { if (!ready) return; try { localStorage.setItem(KEY, JSON.stringify({ queue: queue.map((id) => ({ id, title: meta[id]?.title, artist: meta[id]?.artist, duration_sec: meta[id]?.duration_sec })), index, volume, shuffle, repeat })); } catch {} }, [queue, index, volume, shuffle, repeat, ready]); // eslint-disable-line
+  useEffect(() => { if (!ready) return; try { localStorage.setItem(KEY, JSON.stringify({ queue: queue.map((id) => ({ id, title: meta[id]?.title, artist: meta[id]?.artist, duration_sec: meta[id]?.duration_sec })), index, volume, shuffle, repeat, dismissed })); } catch {} }, [queue, index, volume, shuffle, repeat, dismissed, ready]); // eslint-disable-line
   useEffect(() => { if (audio.current) audio.current.volume = volume; }, [volume]);
-  useEffect(() => { document.body.classList.toggle("has-mini", queue[index] != null); return () => document.body.classList.remove("has-mini"); }, [queue, index]);
+  useEffect(() => { document.body.classList.toggle("has-mini", miniPlayerVisible({ queue, index, dismissed })); return () => document.body.classList.remove("has-mini"); }, [queue, index, dismissed]);
 
   const getFile = useCallback(async (id) => {
     let ref = files.current.get(id);
@@ -42,7 +44,7 @@ export default function MusicProvider({ children }) {
 
   const loadIndex = useCallback(async (i, autoplay = true) => {
     const id = st.current.queue[i]; const a = audio.current; if (!a || id == null) return; const seq = ++loadSeq.current;
-    setIndex(i); setTime(0); setDur(0);
+    setDismissed(false); setIndex(i); setTime(0); setDur(0);   // starting any track brings the player back
     const f = await getFile(id); if (seq !== loadSeq.current) return;
     if (!f) { setBroken((b) => ({ ...b, [id]: true })); a.pause(); setPlaying(false); toast(`“${st.current.meta[id]?.title || "Track"}” isn't available on this device — locate the file in Music.`, "err"); return; }
     if (url.current) URL.revokeObjectURL(url.current); url.current = URL.createObjectURL(f); a.src = url.current; setBroken((b) => ({ ...b, [id]: false }));
@@ -71,7 +73,7 @@ export default function MusicProvider({ children }) {
   }, [meta, queue, index, next, prev]);
 
   const api = {
-    ready, meta, queue, index, current: queue[index] ?? null, playing, time, dur, volume, shuffle, repeat, local, broken,
+    ready, meta, queue, index, dismissed, current: queue[index] ?? null, playing, time, dur, volume, shuffle, repeat, local, broken,
     register(tracks) { setMeta((m) => ({ ...m, ...Object.fromEntries(tracks.map((t) => [t.id, { ...m[t.id], ...t }])) })); },   // merge: never drop fields (fingerprint, favorite…) another page already loaded
     async refreshLocal(ids) { const have = ids.filter((id) => files.current.has(id)); const stored = await idbHas(ids.filter((id) => !files.current.has(id))); setLocal((l) => ({ ...l, ...Object.fromEntries([...have, ...stored].map((id) => [id, true])) })); return [...have, ...stored]; },   // returns the ids playable on THIS device
     playTracks(ids, start = 0) { hist.current = []; st.current = { ...st.current, queue: ids }; setQueue(ids); loadIndex(start, true); },
@@ -80,7 +82,8 @@ export default function MusicProvider({ children }) {
     moveInQueue(i, d) { setQueue((q) => { const j = i + d; if (j < 0 || j >= q.length) return q; const n = [...q]; [n[i], n[j]] = [n[j], n[i]]; setIndex((cur) => (cur === i ? j : cur === j ? i : cur)); return n; }); },
     clearQueue() { audio.current?.pause(); if (audio.current) audio.current.removeAttribute("src"); setQueue([]); setIndex(-1); setPlaying(false); setTime(0); setDur(0); },
     playIndex: (i) => loadIndex(i, true),
-    toggle() { const a = audio.current; if (!a) return; if (!a.src && st.current.index >= 0) { loadIndex(st.current.index, true); return; } a.paused ? a.play().catch(() => {}) : a.pause(); },
+    dismiss() { audio.current?.pause(); setPlaying(false); setDismissed(true); },   // ✕ on the bar: stop the sound and hide the bar; the queue is untouched
+    toggle() { setDismissed(false); const a = audio.current; if (!a) return; if (!a.src && st.current.index >= 0) { loadIndex(st.current.index, true); return; } a.paused ? a.play().catch(() => {}) : a.pause(); },
     next, prev, seek(t) { if (audio.current) audio.current.currentTime = t; }, setVolume,
     toggleShuffle: () => setShuffle((s) => !s), cycleRepeat: () => setRepeat((r) => (r === "off" ? "all" : r === "all" ? "one" : "off")),
     // Import: read metadata locally, send ONLY metadata to the server, keep the File/handle on this device.

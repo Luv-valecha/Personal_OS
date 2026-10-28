@@ -2,7 +2,7 @@
  * CACHED:   static build assets (/_next/static), icons, and one offline fallback page.
  * NEVER CACHED: HTML pages, API responses, server actions — they contain private data and need the network.
  * Offline behaviour: the installed app opens and shows the offline page; previously loaded JS/CSS stays warm. */
-const VERSION = "4.0.0"; // keep in sync with package.json — a new version name makes the browser install the new worker and drop old caches
+const VERSION = "4.0.1"; // keep in sync with package.json — a new version name makes the browser install the new worker and drop old caches
 const STATIC = `static-${VERSION}`;
 const PRECACHE = ["/offline", "/icons/icon-192.png", "/icons/icon-512.png"];
 

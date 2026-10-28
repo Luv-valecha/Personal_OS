@@ -1,6 +1,6 @@
 export default function manifest() {
   return {
-    id: "/", name: "Lucifer's OS", short_name: "Lucifer OS", version: "4.0.0",
+    id: "/", name: "Lucifer's OS", short_name: "Lucifer OS", version: "4.0.1",
     description: "A minimal personal operating system.",
     start_url: "/dashboard", scope: "/", display: "standalone", orientation: "any",
     background_color: "#0a0305", theme_color: "#0a0305", categories: ["productivity"],

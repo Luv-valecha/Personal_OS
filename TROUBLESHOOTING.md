@@ -10,7 +10,11 @@
 
 **Redis: `breaker.open: true`** — Redis failed or the free quota (500K commands/month) was hit; the app is using the database and retries automatically (30 s, doubling to 5 min). Check Upstash → Usage and your env vars.
 
+**Microphone: browser never asks for permission** — fixed in 4.0.1 (the site's own `Permissions-Policy` header used to forbid the mic). After deploying, reload once so the new service worker/headers apply. If you ever chose *Block* for the site, Chrome won't ask again: click the lock/tune icon next to the address → Site settings → Microphone → Allow. If the message says the page "isn't allowed to use the microphone (a server setting)", check that `next.config.js` still has `microphone=(self)`.
+
 **Microphone button says unsupported / blocked** — Firefox has no speech recognition; elsewhere allow the microphone for the site (browser address-bar icon → site settings). Voice input needs an internet connection. "I didn't hear anything": speak after the "Listening…" prompt. Spoken replies silent: turn them on with the speaker button, check the device volume and installed voices; some browsers need one tap on the speaker first.
+
+**Mini music player is in the way** — tap its ✕ (it pauses and hides the bar but keeps your queue; playing anything again brings it back). *Clear queue* on the Music page empties the queue.
 
 **Music widget: "None of these songs are on this device"** — audio files live on each device. Open the Music page and add/locate the files on this device.
 

@@ -1,5 +1,15 @@
 # Changelog
 
+## [4.0.1] — 2026-10
+### Fixed
+- **Microphone permission was never requested.** `next.config.js` sent `Permissions-Policy: microphone=()` (a V3 hardening default), which disables the microphone for the entire page: Chrome never showed its prompt and voice input failed immediately. Now `microphone=(self)`; camera and geolocation remain disabled and third-party frames still cannot use the mic.
+- Voice input now requests permission explicitly (`getUserMedia`, stream released immediately) before listening, and distinguishes *prompt dismissed* ("tap the mic again and choose Allow"), *blocked* (exact steps to unblock), *no microphone*, *microphone in use*, and *page not allowed to use the microphone*. Cancelling while the prompt is open no longer starts listening afterwards.
+- **Mini music player could not be dismissed on phones.** The ✕ was `hidden sm:inline-flex` (invisible on small screens) and, where visible, cleared the whole queue. The ✕ now shows at every width and dismisses the player **without clearing the queue** (pauses and hides; persisted across navigation/reload; any new playback brings it back). *Clear queue* is unchanged on the Music page.
+### Changed
+- Version 4.0.1 (package.json, service worker cache, manifest, README). No database migration.
+### Verification
+Unit tests 182 (18 new: every permission outcome with fake browser APIs, the real header value, music dismissal rules). Not verified: real Chrome/Safari permission dialogs and real audio (no browser in the build environment) — please confirm on your device.
+
 ## [4.0.0] — 2026-10
 Upgrade of the existing PWA (V3.1.21 → 4.0.0). Additive migrations 006–010; no V3 feature removed.
 

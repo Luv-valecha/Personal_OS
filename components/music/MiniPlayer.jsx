@@ -3,9 +3,10 @@ import Link from "next/link";
 import { Play, Pause, SkipBack, SkipForward, X, Music2 } from "lucide-react";
 import { useMusic } from "@/components/music/MusicProvider";
 import { fmtTime } from "@/lib/music-client";
+import { miniPlayerVisible } from "@/lib/music-ui";
 
 export default function MiniPlayer() {
-  const m = useMusic(); if (!m || m.current == null) return null; const t = m.meta[m.current] || {}; const broken = m.broken[m.current]; const d = Number.isFinite(m.dur) && m.dur > 0 ? m.dur : t.duration_sec || 0;
+  const m = useMusic(); if (!m || !miniPlayerVisible({ queue: m.queue, index: m.index, dismissed: m.dismissed })) return null; const t = m.meta[m.current] || {}; const broken = m.broken[m.current]; const d = Number.isFinite(m.dur) && m.dur > 0 ? m.dur : t.duration_sec || 0;
   return (
     <div className="mini-player" role="region" aria-label="Music player">
       <Link href="/music" className="mini-art" aria-label="Open music library"><Music2 size={16} /></Link>
@@ -17,6 +18,6 @@ export default function MiniPlayer() {
       <button className="btn btn-ghost btn-icon btn-sm" onClick={m.prev} aria-label="Previous track"><SkipBack size={16} /></button>
       <button className="btn btn-primary btn-icon" style={{ borderRadius: 999 }} onClick={m.toggle} aria-label={m.playing ? "Pause" : "Play"}>{m.playing ? <Pause size={16} /> : <Play size={16} />}</button>
       <button className="btn btn-ghost btn-icon btn-sm" onClick={m.next} aria-label="Next track"><SkipForward size={16} /></button>
-      <button className="btn btn-ghost btn-icon btn-sm hidden sm:inline-flex" onClick={m.clearQueue} aria-label="Close player"><X size={15} /></button>
+      <button className="btn btn-ghost btn-icon btn-sm" onClick={m.dismiss} aria-label="Close player" title="Close player (your queue is kept)"><X size={16} /></button>
     </div>);
 }
